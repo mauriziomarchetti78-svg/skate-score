@@ -1056,9 +1056,15 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
 // STATE
 // ═══════════════════════════════════════════════════════════
 let ente = 'aics';
-let currentRace = null; // { id, ente, name, date, place, category, athletes:[], votes:{} }
-let archive = JSON.parse(localStorage.getItem('ss_archive') || '[]');
+let currentRace = null;
+let archive = [];
 let sortBy = 'total';
+
+function loadArchive() {
+  try { archive = JSON.parse(localStorage.getItem('ss_archive') || '[]'); }
+  catch(e) { archive = []; }
+}
+loadArchive();
 
 // ═══════════════════════════════════════════════════════════
 // SCREENS
@@ -1409,12 +1415,14 @@ function confirmEndRace() {
 
 function archiveRace() {
   if (!currentRace) return;
+  loadArchive(); // rileggi archivio fresco prima di salvare
   currentRace.archived = true;
   currentRace.archivedAt = new Date().toISOString();
-  // Remove if already exists (re-archive)
+  // Rimuovi se già presente (ri-archiviazione)
   archive = archive.filter(r => r.id !== currentRace.id);
   archive.unshift(currentRace);
   localStorage.setItem('ss_archive', JSON.stringify(archive));
+  localStorage.removeItem('ss_current');
   currentRace = null;
   toast('Gara archiviata! ✓');
   showScreen('archive');
@@ -1422,14 +1430,15 @@ function archiveRace() {
 
 function saveCurrentRace() {
   if (!currentRace) return;
-  // Also update in archive if it was already saved there (autosave)
+  // Salva sempre la gara corrente in localStorage
+  localStorage.setItem('ss_current', JSON.stringify(currentRace));
+  // Se era già in archivio (gara riaperta), aggiorna anche lì
   const idx = archive.findIndex(r => r.id === currentRace.id);
   if (idx >= 0) { archive[idx] = currentRace; localStorage.setItem('ss_archive', JSON.stringify(archive)); }
-  // Also keep in sessionStorage as backup
-  sessionStorage.setItem('ss_current', JSON.stringify(currentRace));
 }
 
 function renderArchive() {
+  loadArchive(); // rileggi sempre dal localStorage
   const grid = document.getElementById('archive-grid');
   if (!archive.length) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;padding:4rem 1rem;"><div class="empty-icon">📁</div><div class="empty-text">Nessuna gara archiviata ancora.<br>Completa una gara per vederla qui.</div></div>`;
@@ -1478,6 +1487,7 @@ function reopenRace(id) {
 
 function deleteArchivedRace(id) {
   showModal('Elimina gara', 'Eliminare definitivamente questa gara dall\'archivio? Azione irreversibile.', () => {
+    loadArchive();
     archive = archive.filter(r => r.id != id);
     localStorage.setItem('ss_archive', JSON.stringify(archive));
     renderArchive(); toast('Gara eliminata');
@@ -1799,7 +1809,7 @@ window._pwaEnteHooked = true;
 // ═══════════════════════════════════════════════════════════
 selectEnte('aics');
 // Restore in-progress race from session
-const saved = sessionStorage.getItem('ss_current');
+const saved = localStorage.getItem('ss_current');
 if (saved) {
   try {
     const r = JSON.parse(saved);
