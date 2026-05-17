@@ -863,7 +863,8 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
     <div class="topbar-right">
       <div id="topbar-race-title" class="race-title-bar"></div>
       <div id="topbar-ente-badge" class="ente-badge">AICS</div>
-      <button class="btn btn-ghost btn-sm" onclick="confirmEndRace()">🏁 Fine gara</button>
+      <button class="btn btn-ghost btn-sm" onclick="confirmNewRace()">+ Nuova gara</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmEndRace()">🏁 Archivia</button>
     </div>
   </div>
 
@@ -1398,25 +1399,99 @@ function renderRanking() {
 // ═══════════════════════════════════════════════════════════
 // ARCHIVE
 // ═══════════════════════════════════════════════════════════
+function confirmNewRace() {
+  showModal(
+    '+ Nuova gara',
+    'La gara in corso "' + (currentRace ? currentRace.name : '') + '" rimarrà salvata. Puoi riaprirla dall'archivio in qualsiasi momento. Vuoi iniziare una nuova gara?',
+    () => {
+      // Salva la gara corrente nell'archivio prima di uscire
+      if (currentRace) {
+        loadArchive();
+        currentRace.archived = false; // rimane come "in corso"
+        const idx = archive.findIndex(r => r.id === currentRace.id);
+        if (idx >= 0) archive[idx] = currentRace;
+        else archive.unshift(currentRace);
+        localStorage.setItem('ss_archive', JSON.stringify(archive));
+        // NON rimuovere ss_current così rimane recuperabile
+      }
+      showScreen('welcome');
+      toast('Puoi riprendere la gara dall'archivio');
+    },
+    'Vai alla home'
+  );
+}
+
 function confirmEndRace() {
-  showModal('🏁 Archivia gara', `Archiviare "${currentRace.name}"? Potrà essere consultata e riesportata in qualsiasi momento dall'archivio.`, () => {
-    archiveRace();
-  }, 'Archivia');
+  const complete = currentRace.athletes.filter(a => {
+    const v = currentRace.votes[a.id] || {};
+    return ['t1','t2','t3','a1','a2','a3'].every(f => v[f] !== undefined && v[f] !== '');
+  }).length;
+  showModal(
+    '🏁 Archivia gara',
+    \`Stai per archiviare "\${currentRace.name}". \${currentRace.athletes.length} atleti, \${complete} schede complete. La gara verrà salvata definitivamente nell'archivio.\`,
+    () => { archiveRace(); },
+    'Archivia e salva'
+  );
 }
 
 function archiveRace() {
   if (!currentRace) return;
-  loadArchive(); // rileggi archivio fresco prima di salvare
+  loadArchive();
   currentRace.archived = true;
   currentRace.archivedAt = new Date().toISOString();
-  // Rimuovi se già presente (ri-archiviazione)
+  const raceName = currentRace.name;
+  const athleteCount = currentRace.athletes.length;
+  const complete = currentRace.athletes.filter(a => {
+    const v = currentRace.votes[a.id] || {};
+    return ['t1','t2','t3','a1','a2','a3'].every(f => v[f] !== undefined && v[f] !== '');
+  }).length;
   archive = archive.filter(r => r.id !== currentRace.id);
   archive.unshift(currentRace);
+  // Salva e verifica
   localStorage.setItem('ss_archive', JSON.stringify(archive));
+  const verify = localStorage.getItem('ss_archive');
+  const saved = verify ? JSON.parse(verify) : [];
+  const ok = saved.some(r => r.name === raceName);
   localStorage.removeItem('ss_current');
   currentRace = null;
-  toast('Gara archiviata! ✓');
-  showScreen('archive');
+  if (ok) {
+    showArchiveSuccessScreen(raceName, athleteCount, complete);
+  } else {
+    toast('⚠️ Errore archiviazione, riprova!');
+  }
+}
+
+function showArchiveSuccessScreen(name, athletes, complete) {
+  // Mostra schermata di conferma archiviazione
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `position:fixed;inset:0;z-index:400;
+    background:var(--bg);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:2rem;text-align:center;`;
+  overlay.innerHTML = \`
+    <div style="font-size:4rem;margin-bottom:1rem;animation:float 2s ease-in-out infinite;">🏆</div>
+    <div style="font-family:'Clash Display',Georgia,serif;font-size:1.8rem;font-weight:700;
+      background:var(--cg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      background-clip:text;margin-bottom:0.5rem;">Gara Archiviata!</div>
+    <div style="font-size:1rem;font-weight:600;color:var(--text);margin-bottom:0.25rem;">\${name}</div>
+    <div style="font-size:0.8rem;color:var(--text2);margin-bottom:2rem;">
+      \${athletes} atleti · \${complete} schede complete
+    </div>
+    <div style="background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);
+      border-radius:12px;padding:1rem 1.5rem;margin-bottom:2rem;max-width:320px;">
+      <div style="font-size:0.75rem;color:var(--total);font-weight:600;">✓ Salvata correttamente</div>
+      <div style="font-size:0.68rem;color:var(--text2);margin-top:0.3rem;">
+        Trovi questa gara nell'archivio.<br>Puoi esportare i PDF in qualsiasi momento.
+      </div>
+    </div>
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;">
+      <button onclick="this.closest('div[style]').remove();showScreen('archive');"
+        class="btn btn-primary">📁 Vai all'archivio</button>
+      <button onclick="this.closest('div[style]').remove();showScreen('welcome');"
+        class="btn btn-secondary">+ Nuova gara</button>
+    </div>
+  \`;
+  document.body.appendChild(overlay);
 }
 
 function saveCurrentRace() {
