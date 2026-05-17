@@ -784,17 +784,7 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
     font-size:0.72rem; padding:0.55rem 0.75rem; cursor:pointer;">✕</button>
 </div>
 
-<!-- ═══ PWA UPDATE BANNER ═══ -->
-<div id="pwa-update-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:300;
-  background:#1a2236; border-bottom:2px solid var(--total);
-  padding:0.7rem 1.25rem; align-items:center; gap:1rem; justify-content:center;
-  box-shadow:0 4px 20px rgba(0,0,0,0.4);">
-  <span style="font-size:0.78rem; color:var(--text); font-family:Outfit,sans-serif;">🔄 Aggiornamento disponibile</span>
-  <button onclick="applyUpdate()" style="background:var(--total); color:#0a0e1a; border:none; border-radius:8px;
-    font-family:Outfit,sans-serif; font-size:0.72rem; font-weight:700; padding:0.4rem 0.9rem; cursor:pointer;">Aggiorna</button>
-  <button onclick="document.getElementById('pwa-update-banner').style.display='none'" style="background:transparent;
-    border:none; color:var(--text2); font-size:1rem; cursor:pointer; padding:0.2rem 0.4rem;">✕</button>
-</div>
+<!-- update banner rimosso (no service worker) -->
 
 <div class="bg-mesh" id="bg-mesh"></div>
 
@@ -1720,52 +1710,23 @@ function uid() { return Date.now().toString(36)+Math.random().toString(36).slice
 
 
 // ═══════════════════════════════════════════════════════════
-// PWA — Service Worker + Install Prompt + Update
+// PWA — Install Prompt (senza Service Worker)
 // ═══════════════════════════════════════════════════════════
 let deferredInstallPrompt = null;
-let swRegistration = null;
 
-// Register Service Worker
+// Disinstalla eventuali service worker precedenti
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      swRegistration = await navigator.serviceWorker.register('./sw.js');
-      console.log('[SW] Registrato:', swRegistration.scope);
-
-      // Check for updates
-      swRegistration.addEventListener('updatefound', () => {
-        const newWorker = swRegistration.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // New version available
-            document.getElementById('pwa-update-banner').style.display = 'flex';
-          }
-        });
-      });
-    } catch (err) {
-      console.warn('[SW] Registrazione fallita:', err);
-    }
-  });
-
-  // Reload when new SW takes control
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) { refreshing = true; window.location.reload(); }
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
   });
 }
 
-function applyUpdate() {
-  if (swRegistration && swRegistration.waiting) {
-    swRegistration.waiting.postMessage('SKIP_WAITING');
-  }
-}
-
-// Install prompt (Android Chrome)
+// Install prompt Android Chrome
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
   const banner = document.getElementById('pwa-install-banner');
-  if (banner) { banner.style.display = 'flex'; }
+  if (banner) banner.style.display = 'flex';
 });
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -1783,49 +1744,39 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('appinstalled', () => {
-  toast('App installata con successo ✓');
+  toast('App installata ✓');
   const b = document.getElementById('pwa-install-banner');
   if (b) b.style.display = 'none';
-  deferredInstallPrompt = null;
 });
 
-// iOS Safari: show manual instructions if standalone not detected
+// iOS Safari hint
 window.addEventListener('load', () => {
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = window.navigator.standalone === true;
-  const dismissed = sessionStorage.getItem('ios-hint-dismissed');
-  if (isIOS && !isStandalone && !dismissed) {
+  if (isIOS && !isStandalone) {
     setTimeout(() => {
-      // Show a subtle iOS hint after 3 seconds
       const hint = document.createElement('div');
-      hint.id = 'ios-hint';
       hint.style.cssText = `position:fixed;bottom:0;left:0;right:0;z-index:300;
         background:linear-gradient(135deg,#111827,#1a2236);
         border-top:2px solid var(--c1);
-        padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+        padding:1rem 1.25rem 1.5rem;
         display:flex;align-items:center;gap:1rem;
         box-shadow:0 -8px 32px rgba(0,0,0,0.5);`;
       hint.innerHTML = `
         <span style="font-size:1.6rem;">🛼</span>
         <div style="flex:1;">
           <div style="font-size:0.8rem;font-weight:700;color:#fff;font-family:Outfit,sans-serif;">Installa su iPhone</div>
-          <div style="font-size:0.68rem;color:var(--text2);margin-top:2px;font-family:Outfit,sans-serif;">
-            Tocca <strong style="color:#fff;">□↑ Condividi</strong> → <strong style="color:#fff;">Aggiungi a schermata Home</strong>
+          <div style="font-size:0.68rem;color:#8899bb;margin-top:2px;font-family:Outfit,sans-serif;">
+            Tocca <strong style="color:#fff;">□↑ Condividi</strong> poi <strong style="color:#fff;">Aggiungi a schermata Home</strong>
           </div>
         </div>
-        <button onclick="this.parentElement.remove();sessionStorage.setItem('ios-hint-dismissed','1')"
-          style="background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:8px;
+        <button onclick="this.parentElement.remove()"
+          style="background:transparent;border:1px solid rgba(255,255,255,0.2);color:#8899bb;border-radius:8px;
           font-family:Outfit,sans-serif;font-size:0.72rem;padding:0.5rem 0.7rem;cursor:pointer;">✕</button>`;
       document.body.appendChild(hint);
     }, 3000);
   }
 });
-
-// Update theme-color when ente changes
-const origApplyEnteTheme = applyEnteTheme;
-// Extend applyEnteTheme to also update meta theme-color
-const _origApply = applyEnteTheme;
-window._pwaEnteHooked = true;
 
 // ═══════════════════════════════════════════════════════════
 // INIT
