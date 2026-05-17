@@ -1415,6 +1415,7 @@ function archiveRace() {
   archive = archive.filter(r => r.id !== currentRace.id);
   archive.unshift(currentRace);
   localStorage.setItem('ss_archive', JSON.stringify(archive));
+  localStorage.removeItem('ss_current');
   currentRace = null;
   toast('Gara archiviata! ✓');
   showScreen('archive');
@@ -1422,11 +1423,11 @@ function archiveRace() {
 
 function saveCurrentRace() {
   if (!currentRace) return;
-  // Also update in archive if it was already saved there (autosave)
+  // Salva sempre la gara corrente in localStorage
+  localStorage.setItem('ss_current', JSON.stringify(currentRace));
+  // Se era già in archivio (gara riaperta), aggiorna anche lì
   const idx = archive.findIndex(r => r.id === currentRace.id);
   if (idx >= 0) { archive[idx] = currentRace; localStorage.setItem('ss_archive', JSON.stringify(archive)); }
-  // Also keep in sessionStorage as backup
-  sessionStorage.setItem('ss_current', JSON.stringify(currentRace));
 }
 
 function renderArchive() {
@@ -1799,7 +1800,7 @@ window._pwaEnteHooked = true;
 // ═══════════════════════════════════════════════════════════
 selectEnte('aics');
 // Restore in-progress race from session
-const saved = sessionStorage.getItem('ss_current');
+const saved = localStorage.getItem('ss_current');
 if (saved) {
   try {
     const r = JSON.parse(saved);
