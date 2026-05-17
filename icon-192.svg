@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35"/>
+      <stop offset="100%" style="stop-color:#ff3d7f"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a2236"/>
+      <stop offset="100%" style="stop-color:#0a0e1a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="192" height="192" rx="34" fill="url(#g2)"/>
+  <!-- Gradient ring -->
+  <circle cx="96" cy="96" r="80" fill="none" stroke="url(#g1)" stroke-width="7" opacity="0.5"/>
+  <!-- Top bar accent -->
+  <rect x="0" y="0" width="192" height="10" rx="34" fill="url(#g1)"/>
+  <!-- Bottom bar accent -->
+  <rect x="0" y="181" width="192" height="10" rx="0" fill="url(#g1)"/>
+  <!-- Skate emoji area -->
+  <text x="96" y="119" text-anchor="middle" font-size="67" font-family="Apple Color Emoji,Segoe UI Emoji,sans-serif">🛼</text>
+  <!-- SKATE text -->
+  <text x="96" y="149" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="22" fill="#ffffff" letter-spacing="4">SKATE</text>
+  <!-- SCORE text -->
+  <text x="96" y="170" text-anchor="middle" font-family="Georgia,serif" font-weight="400" font-size="18" fill="#ff6b35" letter-spacing="5">SCORE</text>
+</svg>

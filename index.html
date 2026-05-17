@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Skate Score">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#ff6b35" id="meta-theme-color">
+<meta name="description" content="Gestione gare di pattinaggio su rotelle AICS e UISP">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.svg">
+<link rel="icon" type="image/svg+xml" href="icon-192.svg">
+<title>Skate Score</title>
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2236;
+  --surface3: #222d42;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0f4ff;
+  --text2: #8899bb;
+  --text3: #4a5a7a;
+
+  /* AICS palette */
+  --aics1: #ff6b35;
+  --aics2: #ff8c42;
+  --aics-g: linear-gradient(135deg,#ff6b35,#ff3d7f);
+
+  /* UISP palette */
+  --uisp1: #00c2ff;
+  --uisp2: #7b61ff;
+  --uisp-g: linear-gradient(135deg,#00c2ff,#7b61ff);
+
+  /* Active ente colors (set by JS) */
+  --c1: #ff6b35;
+  --c2: #ff3d7f;
+  --cg: linear-gradient(135deg,#ff6b35,#ff3d7f);
+
+  --tech: #38bdf8;
+  --art: #f59e0b;
+  --total: #34d399;
+
+  --gold: #ffd700;
+  --silver: #c0c0c0;
+  --bronze: #cd7f32;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+/* ── FONTS FALLBACK ── */
+@font-face {
+  font-family: 'Clash Display';
+  src: local('Georgia');
+  font-weight: 400 700;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  font-family: 'Outfit', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BACKGROUND MESH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.bg-mesh {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(255,107,53,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 80% 80%, rgba(0,194,255,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(123,97,255,0.05) 0%, transparent 60%);
+  transition: all 0.6s ease;
+}
+body.uisp .bg-mesh {
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(0,194,255,0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 80% 80%, rgba(123,97,255,0.1) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(0,194,255,0.05) 0%, transparent 60%);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   LAYOUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#app { position: relative; z-index: 1; }
+
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: flex; flex-direction: column; }
+
+.container { max-width: 960px; margin: 0 auto; padding: 0 1.25rem; width: 100%; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOP BAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.topbar {
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,14,26,0.8);
+  backdrop-filter: blur(20px);
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-logo {
+  font-family: 'Clash Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  background: var(--cg);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.topbar-logo span { font-size: 1.4rem; -webkit-text-fill-color: initial; }
+.topbar-right { display: flex; align-items: center; gap: 0.75rem; }
+.ente-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  background: var(--cg);
+  color: #fff;
+}
+.race-title-bar {
+  font-size: 0.72rem;
+  color: var(--text2);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   NAV TABS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.tab-nav {
+  display: flex;
+  gap: 0;
+  padding: 1rem 1.25rem 0;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+.tab-btn {
+  flex: 1;
+  padding: 0.65rem 0.5rem;
+  border: none;
+  background: var(--surface);
+  color: var(--text2);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+}
+.tab-btn .tab-icon { font-size: 1.1rem; }
+.tab-btn:first-child { border-radius: var(--radius-sm) 0 0 0; }
+.tab-btn:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+.tab-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--c1);
+  background: var(--surface2);
+}
+.tab-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+.tab-content {
+  background: var(--surface);
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-width: 960px;
+  margin: 0 auto 2rem;
+  width: 100%;
+  padding: 1.5rem 1.25rem;
+  min-height: 400px;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SCREEN 1 — WELCOME / ENTE CHOICE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#screen-welcome {
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+  text-align: center;
+}
+.welcome-logo {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-10px)}
+}
+.welcome-title {
+  font-family: 'Clash Display', Georgia, serif;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 700;
+  background: linear-gradient(135deg, #fff 30%, var(--c1));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.4rem;
+}
+.welcome-sub {
+  font-size: 0.9rem;
+  color: var(--text2);
+  margin-bottom: 2.5rem;
+  font-weight: 300;
+}
+
+.ente-cards {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+.ente-card {
+  width: 220px;
+  padding: 2rem 1.5rem;
+  border-radius: var(--radius);
+  border: 2px solid var(--border2);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  background: var(--surface2);
+  position: relative;
+  overflow: hidden;
+}
+.ente-card::before {
+  content:'';
+  position:absolute;inset:0;
+  opacity:0;
+  transition: opacity 0.3s;
+}
+.ente-card.aics::before { background: var(--aics-g); }
+.ente-card.uisp::before { background: var(--uisp-g); }
+.ente-card:hover { transform: translateY(-6px) scale(1.02); border-color: transparent; }
+.ente-card:hover::before { opacity: 0.12; }
+.ente-card.selected { border-color: transparent; transform: translateY(-4px) scale(1.02); }
+.ente-card.aics.selected::before { opacity: 0.18; }
+.ente-card.uisp.selected::before { opacity: 0.18; }
+.ente-card-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+.ente-card-name {
+  font-family: 'Clash Display', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+.ente-card.aics .ente-card-name { background: var(--aics-g); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.ente-card.uisp .ente-card-name { background: var(--uisp-g); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.ente-card-desc { font-size: 0.72rem; color: var(--text2); line-height: 1.5; }
+.ente-card-check {
+  position: absolute; top: 0.75rem; right: 0.75rem;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--cg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.ente-card.selected .ente-card-check { opacity: 1; }
+
+/* Race setup form */
+.setup-form {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+  border: 1px solid var(--border2);
+}
+.setup-form-title {
+  font-family: 'Clash Display', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.setup-form-title::before {
+  content: '';
+  display: block; width: 4px; height: 20px;
+  border-radius: 2px;
+  background: var(--cg);
+}
+
+.form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 140px; }
+.form-group label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text2); }
+.form-group input, .form-group select {
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  padding: 0.65rem 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--c1);
+  box-shadow: 0 0 0 3px rgba(var(--c1-rgb,255,107,53),0.15);
+}
+.form-group select option { background: var(--surface3); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BUTTONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0.7rem 1.4rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.btn-primary {
+  background: var(--cg);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(255,107,53,0.25);
+}
+.btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(255,107,53,0.35); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary {
+  background: var(--surface3);
+  color: var(--text);
+  border: 1px solid var(--border2);
+}
+.btn-secondary:hover { background: var(--surface2); border-color: var(--c1); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.9rem;
+  font-size: 0.75rem;
+}
+.btn-ghost:hover { border-color: var(--c1); color: var(--text); }
+.btn-danger {
+  background: rgba(239,68,68,0.1);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.25);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.7rem;
+}
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.72rem; }
+.btn-lg { padding: 0.9rem 2rem; font-size: 1rem; }
+.btn-block { width: 100%; justify-content: center; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SCREEN MAIN (tabs)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#screen-main { flex-direction: column; }
+.main-header {
+  padding: 1.25rem 1.25rem 0;
+}
+.race-info-strip {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0.75rem 1.25rem;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+  border: 1px solid var(--border2);
+}
+.race-info-item { display: flex; flex-direction: column; gap: 1px; }
+.race-info-label { font-size: 0.58rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3); }
+.race-info-val { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+.race-info-sep { width: 1px; height: 32px; background: var(--border2); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ATHLETES TAB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.add-athlete-form {
+  background: var(--surface3);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.1rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border2);
+}
+.athlete-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.6rem;
+}
+.athlete-chip {
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: border-color 0.2s, transform 0.15s;
+  animation: slideIn 0.2s ease;
+}
+@keyframes slideIn {
+  from { opacity:0; transform: translateY(6px); }
+  to { opacity:1; transform: translateY(0); }
+}
+.athlete-chip:hover { border-color: var(--border2); transform: translateX(2px); }
+.athlete-chip-num {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--cg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.athlete-chip-info { flex: 1; min-width: 0; }
+.athlete-chip-name { font-size: 0.84rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.athlete-chip-club { font-size: 0.67rem; color: var(--text2); margin-top: 1px; }
+.athlete-chip-status { font-size: 0.65rem; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   VOTES TAB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.votes-legend {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.legend-pill {
+  font-size: 0.65rem; font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  display: flex; align-items: center; gap: 0.3rem;
+}
+.legend-pill.tech { background: rgba(56,189,248,0.12); color: var(--tech); border: 1px solid rgba(56,189,248,0.25); }
+.legend-pill.art { background: rgba(245,158,11,0.12); color: var(--art); border: 1px solid rgba(245,158,11,0.25); }
+.legend-pill.tot { background: rgba(52,211,153,0.12); color: var(--total); border: 1px solid rgba(52,211,153,0.25); }
+
+.votes-table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 0.78rem; min-width: 700px; }
+thead th {
+  padding: 0.7rem 0.6rem;
+  text-align: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--surface3);
+  white-space: nowrap;
+  border-bottom: 2px solid var(--border2);
+}
+thead th.col-name { text-align: left; }
+th.tech-col { color: var(--tech); }
+th.art-col { color: var(--art); }
+th.total-col { color: var(--total); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+td { padding: 0.5rem 0.6rem; text-align: center; vertical-align: middle; }
+td.col-name { text-align: left; padding-left: 0.9rem; }
+.score-in {
+  width: 56px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.3rem;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.score-in:focus { border-color: var(--c1); box-shadow: 0 0 0 2px rgba(255,107,53,0.2); }
+.score-in.has-val { border-color: rgba(52,211,153,0.35); background: rgba(52,211,153,0.05); }
+.avg-cell {
+  font-weight: 700; font-size: 0.82rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  min-width: 48px;
+  display: inline-block;
+}
+.avg-cell.tech { color: var(--tech); background: rgba(56,189,248,0.1); }
+.avg-cell.art { color: var(--art); background: rgba(245,158,11,0.1); }
+.avg-cell.total { color: var(--total); background: rgba(52,211,153,0.12); font-size: 0.9rem; }
+.avg-cell.empty { color: var(--text3); background: transparent; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   RANKING TAB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.stat-tile {
+  background: var(--surface3);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1rem 0.85rem;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.stat-tile::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:2px;
+  background: var(--cg);
+}
+.stat-tile-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 0.35rem; }
+.stat-tile-val { font-family: 'Clash Display', Georgia, serif; font-size: 1.75rem; font-weight: 700; color: var(--text); line-height: 1; }
+.stat-tile-val.c1 { background: var(--cg); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+
+.ranking-controls {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.sort-group { display: flex; gap: 0.4rem; }
+
+.ranking-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.rank-card {
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  transition: transform 0.15s, border-color 0.15s;
+  animation: slideIn 0.2s ease both;
+}
+.rank-card:hover { transform: translateX(3px); border-color: var(--border2); }
+.rank-card.pos-1 { border-color: rgba(255,215,0,0.35); background: linear-gradient(135deg, rgba(255,215,0,0.05), var(--surface3)); }
+.rank-card.pos-2 { border-color: rgba(192,192,192,0.3); background: linear-gradient(135deg, rgba(192,192,192,0.04), var(--surface3)); }
+.rank-card.pos-3 { border-color: rgba(205,127,50,0.3); background: linear-gradient(135deg, rgba(205,127,50,0.05), var(--surface3)); }
+.rank-pos {
+  display: flex; flex-direction: column; align-items: center; gap: 0.1rem;
+}
+.rank-num {
+  font-family: 'Clash Display', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.pos-1 .rank-num { color: var(--gold); }
+.pos-2 .rank-num { color: var(--silver); }
+.pos-3 .rank-num { color: var(--bronze); }
+.rank-num.normal { color: var(--text2); }
+.rank-medal { font-size: 1rem; }
+.rank-info { min-width: 0; }
+.rank-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-club { font-size: 0.68rem; color: var(--text2); margin-top: 1px; }
+.rank-scores { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.score-badge {
+  display: flex; flex-direction: column; align-items: center;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.3rem 0.5rem;
+  min-width: 52px;
+}
+.score-badge-label { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+.score-badge-val { font-size: 0.85rem; font-weight: 700; }
+.score-badge.tech .score-badge-val { color: var(--tech); }
+.score-badge.art .score-badge-val { color: var(--art); }
+.score-badge.total { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); }
+.score-badge.total .score-badge-val { color: var(--total); font-size: 1rem; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ARCHIVE SCREEN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#screen-archive { flex-direction: column; padding: 0; }
+.archive-header {
+  padding: 1.75rem 1.25rem 1rem;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+.archive-title {
+  font-family: 'Clash Display', Georgia, serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  display: flex; align-items: center; gap: 0.6rem;
+}
+.archive-sub { font-size: 0.82rem; color: var(--text2); }
+.archive-grid {
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1.25rem 3rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.9rem;
+}
+.archive-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.archive-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--cg);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.archive-card:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); border-color: var(--c1); }
+.archive-card:hover::before { opacity: 1; }
+.archive-card-ente {
+  font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 0.2rem 0.6rem; border-radius: 20px; display: inline-block;
+  margin-bottom: 0.65rem;
+}
+.archive-card-ente.aics { background: rgba(255,107,53,0.15); color: #ff6b35; }
+.archive-card-ente.uisp { background: rgba(0,194,255,0.12); color: #00c2ff; }
+.archive-card-name {
+  font-family: 'Clash Display', Georgia, serif;
+  font-size: 1rem; font-weight: 600;
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+}
+.archive-card-meta { font-size: 0.68rem; color: var(--text2); margin-bottom: 0.85rem; }
+.archive-card-stats { display: flex; gap: 1rem; }
+.archive-card-stat { font-size: 0.7rem; color: var(--text2); display: flex; flex-direction: column; gap: 1px; }
+.archive-card-stat strong { color: var(--text); font-size: 0.9rem; }
+.archive-card-actions {
+  display: flex; gap: 0.4rem; margin-top: 0.9rem; padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PROGRESS BAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.progress-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.progress-bar {
+  flex: 1; height: 5px; background: var(--surface3);
+  border-radius: 3px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 3px;
+  background: var(--cg);
+  transition: width 0.4s ease;
+}
+.progress-label { font-size: 0.68rem; color: var(--text2); white-space: nowrap; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   EMPTY STATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text2);
+}
+.empty-icon { font-size: 3rem; margin-bottom: 0.75rem; opacity: 0.5; }
+.empty-text { font-size: 0.85rem; line-height: 1.6; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOAST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--c1);
+  color: var(--text);
+  padding: 0.75rem 1.2rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem; font-weight: 500;
+  z-index: 999;
+  opacity: 0; transform: translateY(10px);
+  transition: all 0.25s;
+  pointer-events: none;
+  max-width: 300px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.toast.show { opacity:1; transform:translateY(0); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MODAL CONFIRM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  max-width: 380px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  transform: scale(0.95); transition: transform 0.2s;
+}
+.modal-overlay.open .modal-box { transform: scale(1); }
+.modal-title { font-family:'Clash Display',Georgia,serif; font-size:1.1rem; font-weight:600; margin-bottom:0.5rem; }
+.modal-text { font-size:0.82rem; color:var(--text2); margin-bottom:1.25rem; line-height:1.5; }
+.modal-actions { display:flex; gap:0.5rem; justify-content:flex-end; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MISC
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.divider { height: 1px; background: var(--border); margin: 1rem 0; }
+.chip-count { font-size: 0.7rem; color: var(--text2); background: var(--surface3); padding: 0.2rem 0.6rem; border-radius: 20px; border: 1px solid var(--border); }
+.section-label {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--text3);
+  margin-bottom: 0.75rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.section-label::after { content:''; flex:1; height:1px; background: var(--border); }
+
+@media(max-width:640px) {
+  .rank-card { grid-template-columns: 44px 1fr; }
+  .rank-scores { grid-column: 1/-1; justify-content: flex-start; }
+  .hide-sm { display:none; }
+  .ente-card { width: 160px; padding: 1.5rem 1rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ PWA INSTALL BANNER ═══ -->
+<div id="pwa-install-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:300;
+  background:linear-gradient(135deg,#111827,#1a2236);
+  border-top:2px solid var(--c1);
+  padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+  align-items:center; gap:1rem; flex-wrap:wrap;
+  box-shadow:0 -8px 32px rgba(0,0,0,0.5);
+  backdrop-filter:blur(20px);">
+  <span style="font-size:2rem;">🛼</span>
+  <div style="flex:1; min-width:160px;">
+    <div style="font-size:0.82rem; font-weight:700; color:#fff; font-family:Outfit,sans-serif;">Installa Skate Score</div>
+    <div style="font-size:0.68rem; color:var(--text2); margin-top:2px; font-family:Outfit,sans-serif;">Aggiungila alla home screen — funziona offline</div>
+  </div>
+  <button id="pwa-install-btn" style="background:var(--cg); color:#fff; border:none; border-radius:10px;
+    font-family:Outfit,sans-serif; font-size:0.78rem; font-weight:700; padding:0.6rem 1.2rem;
+    cursor:pointer; letter-spacing:0.05em;">Installa ↓</button>
+  <button onclick="document.getElementById('pwa-install-banner').style.display='none'" style="background:transparent;
+    border:1px solid var(--border2); color:var(--text2); border-radius:8px; font-family:Outfit,sans-serif;
+    font-size:0.72rem; padding:0.55rem 0.75rem; cursor:pointer;">✕</button>
+</div>
+
+<!-- ═══ PWA UPDATE BANNER ═══ -->
+<div id="pwa-update-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:300;
+  background:#1a2236; border-bottom:2px solid var(--total);
+  padding:0.7rem 1.25rem; align-items:center; gap:1rem; justify-content:center;
+  box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <span style="font-size:0.78rem; color:var(--text); font-family:Outfit,sans-serif;">🔄 Aggiornamento disponibile</span>
+  <button onclick="applyUpdate()" style="background:var(--total); color:#0a0e1a; border:none; border-radius:8px;
+    font-family:Outfit,sans-serif; font-size:0.72rem; font-weight:700; padding:0.4rem 0.9rem; cursor:pointer;">Aggiorna</button>
+  <button onclick="document.getElementById('pwa-update-banner').style.display='none'" style="background:transparent;
+    border:none; color:var(--text2); font-size:1rem; cursor:pointer; padding:0.2rem 0.4rem;">✕</button>
+</div>
+
+<div class="bg-mesh" id="bg-mesh"></div>
+
+<!-- ═══════════════════════════════════
+     SCREEN: WELCOME
+═══════════════════════════════════ -->
+<div id="screen-welcome" class="screen active">
+  <div class="container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem 1.25rem;">
+    <div class="welcome-logo">🛼</div>
+    <h1 class="welcome-title">Skate Score</h1>
+    <p class="welcome-sub">Gestione gare di pattinaggio su rotelle · Categoria Professional</p>
+
+    <div class="section-label" style="width:100%;max-width:520px;">Scegli l'ente organizzatore</div>
+    <div class="ente-cards">
+      <div class="ente-card aics" id="card-aics" onclick="selectEnte('aics')">
+        <div class="ente-card-check">✓</div>
+        <div class="ente-card-icon">🟠</div>
+        <div class="ente-card-name">AICS</div>
+        <div class="ente-card-desc">Associazione Italiana<br>Cultura e Sport</div>
+      </div>
+      <div class="ente-card uisp" id="card-uisp" onclick="selectEnte('uisp')">
+        <div class="ente-card-check">✓</div>
+        <div class="ente-card-icon">🔵</div>
+        <div class="ente-card-name">UISP</div>
+        <div class="ente-card-desc">Unione Italiana<br>Sport Per tutti</div>
+      </div>
+    </div>
+
+    <div class="setup-form" id="setup-form">
+      <div class="setup-form-title">Dati della gara</div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Nome della gara</label>
+          <input type="text" id="inp-race-name" placeholder="es. Campionato Regionale 2026">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="inp-race-date">
+        </div>
+        <div class="form-group">
+          <label>Luogo</label>
+          <input type="text" id="inp-race-place" placeholder="Città, Impianto">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Categoria</label>
+          <select id="inp-race-cat">
+            <option value="Professional">Professional</option>
+            <option value="Amateur">Amateur</option>
+            <option value="Junior">Junior</option>
+            <option value="Senior">Senior</option>
+            <option value="Altra">Altra</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" onclick="startRace()" style="margin-top:0.5rem;">
+        🏁 Inizia la gara
+      </button>
+    </div>
+
+    <div style="margin-top:1.5rem;">
+      <button class="btn btn-ghost" onclick="showScreen('archive')">📁 Archivio gare precedenti</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     SCREEN: MAIN RACE
+═══════════════════════════════════ -->
+<div id="screen-main" class="screen">
+  <div class="topbar">
+    <div class="topbar-logo"><span>🛼</span> Skate Score</div>
+    <div class="topbar-right">
+      <div id="topbar-race-title" class="race-title-bar"></div>
+      <div id="topbar-ente-badge" class="ente-badge">AICS</div>
+      <button class="btn btn-ghost btn-sm" onclick="confirmEndRace()">🏁 Fine gara</button>
+    </div>
+  </div>
+
+  <div style="padding:0.75rem 1.25rem 0; max-width:960px; margin:0 auto; width:100%;">
+    <div class="race-info-strip" id="race-info-strip">
+      <div class="race-info-item">
+        <span class="race-info-label">Gara</span>
+        <span class="race-info-val" id="ri-name">—</span>
+      </div>
+      <div class="race-info-sep"></div>
+      <div class="race-info-item">
+        <span class="race-info-label">Data</span>
+        <span class="race-info-val" id="ri-date">—</span>
+      </div>
+      <div class="race-info-sep"></div>
+      <div class="race-info-item">
+        <span class="race-info-label">Luogo</span>
+        <span class="race-info-val" id="ri-place">—</span>
+      </div>
+      <div class="race-info-sep"></div>
+      <div class="race-info-item">
+        <span class="race-info-label">Categoria</span>
+        <span class="race-info-val" id="ri-cat">—</span>
+      </div>
+      <div class="race-info-sep"></div>
+      <div class="race-info-item">
+        <span class="race-info-label">Atleti</span>
+        <span class="race-info-val" id="ri-count">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div style="padding:0.5rem 1.25rem 0; max-width:960px; margin:0 auto; width:100%;">
+    <div class="tab-nav" style="padding:0;">
+      <button class="tab-btn active" onclick="showTab('athletes')" id="tab-athletes">
+        <span class="tab-icon">👥</span> Atleti
+      </button>
+      <button class="tab-btn" onclick="showTab('votes')" id="tab-votes">
+        <span class="tab-icon">✏️</span> Voti
+      </button>
+      <button class="tab-btn" onclick="showTab('ranking')" id="tab-ranking">
+        <span class="tab-icon">🏆</span> Classifica
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB CONTENT -->
+  <div class="tab-content" style="border-radius:0 0 var(--radius) var(--radius); max-width:960px; margin:0 auto 2rem; width:calc(100% - 2.5rem);">
+
+    <!-- ATHLETES -->
+    <div id="tab-content-athletes">
+      <div class="add-athlete-form">
+        <div class="form-group" style="flex:2; min-width:160px;">
+          <label>Nome Atleta</label>
+          <input type="text" id="inp-name" placeholder="Nome e Cognome" onkeydown="if(event.key==='Enter')addAthlete()">
+        </div>
+        <div class="form-group" style="flex:2; min-width:150px;">
+          <label>Società / Club</label>
+          <input type="text" id="inp-club" placeholder="A.S.D. ..." onkeydown="if(event.key==='Enter')addAthlete()">
+        </div>
+        <div class="form-group" style="flex:0.5; min-width:70px;">
+          <label>N° pett.</label>
+          <input type="number" id="inp-num" placeholder="1" min="1" onkeydown="if(event.key==='Enter')addAthlete()">
+        </div>
+        <button class="btn btn-primary" onclick="addAthlete()" style="align-self:flex-end;">+ Aggiungi</button>
+      </div>
+
+      <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.85rem; flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="toggleImport()">📋 Importa lista CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadDemo()">🎯 Demo 8 atleti</button>
+        <span class="chip-count" id="athlete-count-badge">0 atleti</span>
+        <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="clearAthletes()">🗑 Svuota</button>
+      </div>
+
+      <div id="import-area" style="display:none; background:var(--surface3); border:1px dashed var(--border2); border-radius:var(--radius-sm); padding:1rem; margin-bottom:1rem;">
+        <div style="font-size:0.68rem; color:var(--text2); margin-bottom:0.5rem;">Una per riga: <code>Nome Cognome, Società</code> oppure solo <code>Nome Cognome</code></div>
+        <textarea id="import-text" style="width:100%; background:var(--surface); border:1px solid var(--border2); border-radius:6px; color:var(--text); font-family:monospace; font-size:0.72rem; padding:0.6rem; resize:vertical; min-height:90px; outline:none;" placeholder="Maria Rossi, ASD Pattinatori Roma&#10;Laura Bianchi, Skating Club Milano"></textarea>
+        <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+          <button class="btn btn-primary btn-sm" onclick="importAthletes()">Importa</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleImport()">Annulla</button>
+        </div>
+      </div>
+
+      <div id="athletes-grid" class="athlete-grid">
+        <div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Nessuna atleta ancora.<br>Aggiungile con il form sopra.</div></div>
+      </div>
+    </div>
+
+    <!-- VOTES -->
+    <div id="tab-content-votes" style="display:none;">
+      <div class="votes-legend">
+        <span class="legend-pill tech">● T1 T2 T3 — Tecnica (3 giudici)</span>
+        <span class="legend-pill art">● A1 A2 A3 — Artistica (3 giudici)</span>
+        <span class="legend-pill tot">● Totale = Media T + Media A</span>
+      </div>
+      <div class="progress-row">
+        <div class="progress-bar"><div class="progress-fill" id="votes-progress-fill" style="width:0%"></div></div>
+        <span class="progress-label" id="votes-progress-label">0 / 0 complete</span>
+        <button class="btn btn-ghost btn-sm" onclick="toast('Voti salvati automaticamente ✓')">💾 Salvati</button>
+      </div>
+      <div class="votes-table-wrap">
+        <table id="votes-table">
+          <thead>
+            <tr>
+              <th style="width:36px;">#</th>
+              <th class="col-name">Atleta</th>
+              <th class="hide-sm" style="text-align:left; color:var(--text2);">Club</th>
+              <th class="tech-col">T1</th>
+              <th class="tech-col">T2</th>
+              <th class="tech-col">T3</th>
+              <th class="tech-col">Med.T</th>
+              <th class="art-col">A1</th>
+              <th class="art-col">A2</th>
+              <th class="art-col">A3</th>
+              <th class="art-col">Med.A</th>
+              <th class="total-col">Totale</th>
+            </tr>
+          </thead>
+          <tbody id="votes-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RANKING -->
+    <div id="tab-content-ranking" style="display:none;">
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="ranking-controls">
+        <div class="sort-group">
+          <button class="btn btn-ghost btn-sm" onclick="setSortBy('total')" id="sort-total">↕ Totale</button>
+          <button class="btn btn-ghost btn-sm" onclick="setSortBy('tech')" id="sort-tech">↕ Tecnica</button>
+          <button class="btn btn-ghost btn-sm" onclick="setSortBy('art')" id="sort-art">↕ Artistica</button>
+        </div>
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="exportPDFRanking()">📄 PDF Classifica</button>
+          <button class="btn btn-primary btn-sm" onclick="exportPDFVoti()">📄 PDF Voti</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 CSV</button>
+        </div>
+      </div>
+      <div id="ranking-list" class="ranking-list"></div>
+    </div>
+
+  </div><!-- /tab-content -->
+</div><!-- /screen-main -->
+
+<!-- ═══════════════════════════════════
+     SCREEN: ARCHIVE
+═══════════════════════════════════ -->
+<div id="screen-archive" class="screen">
+  <div class="topbar">
+    <div class="topbar-logo"><span>🛼</span> Skate Score</div>
+    <div class="topbar-right">
+      <button class="btn btn-primary btn-sm" onclick="showScreen('welcome')">+ Nuova gara</button>
+    </div>
+  </div>
+  <div class="archive-header">
+    <div class="archive-title">📁 Archivio Gare</div>
+    <div class="archive-sub">Tutte le gare archiviate — clicca per riaprire o esportare</div>
+  </div>
+  <div id="archive-grid" class="archive-grid"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast-el"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title">Conferma</div>
+    <div class="modal-text" id="modal-text">Sei sicuro?</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-primary btn-sm" id="modal-confirm-btn">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let ente = 'aics';
+let currentRace = null; // { id, ente, name, date, place, category, athletes:[], votes:{} }
+let archive = JSON.parse(localStorage.getItem('ss_archive') || '[]');
+let sortBy = 'total';
+
+// ═══════════════════════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'archive') renderArchive();
+  if (name === 'welcome') {
+    // pre-fill today's date
+    const d = new Date(); const pad = n => String(n).padStart(2,'0');
+    document.getElementById('inp-race-date').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ENTE SELECTION
+// ═══════════════════════════════════════════════════════════
+function selectEnte(e) {
+  ente = e;
+  document.querySelectorAll('.ente-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('card-' + e).classList.add('selected');
+  applyEnteTheme(e);
+}
+
+function applyEnteTheme(e) {
+  document.body.classList.remove('aics','uisp');
+  document.body.classList.add(e);
+  const root = document.documentElement;
+  if (e === 'aics') {
+    root.style.setProperty('--c1','#ff6b35');
+    root.style.setProperty('--c2','#ff3d7f');
+    root.style.setProperty('--cg','linear-gradient(135deg,#ff6b35,#ff3d7f)');
+    root.style.setProperty('--c1-rgb','255,107,53');
+  } else {
+    root.style.setProperty('--c1','#00c2ff');
+    root.style.setProperty('--c2','#7b61ff');
+    root.style.setProperty('--cg','linear-gradient(135deg,#00c2ff,#7b61ff)');
+    root.style.setProperty('--c1-rgb','0,194,255');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RACE SETUP
+// ═══════════════════════════════════════════════════════════
+function startRace() {
+  const name = document.getElementById('inp-race-name').value.trim();
+  const date = document.getElementById('inp-race-date').value;
+  const place = document.getElementById('inp-race-place').value.trim();
+  const cat = document.getElementById('inp-race-cat').value;
+  if (!name) { toast('Inserisci il nome della gara'); return; }
+  if (!date) { toast('Inserisci la data'); return; }
+
+  currentRace = {
+    id: Date.now(),
+    ente,
+    name,
+    date,
+    place: place || '—',
+    category: cat,
+    athletes: [],
+    votes: {},
+    archived: false
+  };
+
+  applyEnteTheme(ente);
+  document.getElementById('topbar-ente-badge').textContent = ente.toUpperCase();
+  document.getElementById('topbar-race-title').textContent = name;
+  document.getElementById('ri-name').textContent = name;
+  document.getElementById('ri-date').textContent = formatDate(date);
+  document.getElementById('ri-place').textContent = place || '—';
+  document.getElementById('ri-cat').textContent = cat;
+  document.getElementById('ri-count').textContent = '0';
+
+  showScreen('main');
+  showTab('athletes');
+  renderAthletes();
+  toast('Gara avviata! Inizia ad aggiungere le atleti 🛼');
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  const months = ['','Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  return `${parseInt(day)} ${months[parseInt(m)]} ${y}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════
+function showTab(name) {
+  ['athletes','votes','ranking'].forEach(t => {
+    document.getElementById('tab-content-' + t).style.display = t === name ? 'block' : 'none';
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+  });
+  if (name === 'votes') renderVotesTable();
+  if (name === 'ranking') renderRanking();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ATHLETES
+// ═══════════════════════════════════════════════════════════
+function addAthlete() {
+  if (!currentRace) return;
+  const name = document.getElementById('inp-name').value.trim();
+  const club = document.getElementById('inp-club').value.trim();
+  const numVal = document.getElementById('inp-num').value.trim();
+  if (!name) { toast('Inserisci il nome dell\'atleta'); return; }
+  const nums = currentRace.athletes.map(a => a.num);
+  const num = numVal ? parseInt(numVal) : (nums.length ? Math.max(...nums) + 1 : 1);
+  currentRace.athletes.push({ id: uid(), name, club, num });
+  currentRace.athletes.sort((a,b) => a.num - b.num);
+  saveCurrentRace();
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-club').value = '';
+  document.getElementById('inp-num').value = '';
+  document.getElementById('inp-name').focus();
+  renderAthletes();
+  toast(`${name} aggiunta ✓`);
+}
+
+function removeAthlete(id) {
+  if (!currentRace) return;
+  currentRace.athletes = currentRace.athletes.filter(a => a.id !== id);
+  delete currentRace.votes[id];
+  saveCurrentRace();
+  renderAthletes();
+}
+
+function clearAthletes() {
+  showModal('Svuota lista atleti', 'Eliminare tutte le atleti e i voti della gara corrente?', () => {
+    currentRace.athletes = []; currentRace.votes = {};
+    saveCurrentRace(); renderAthletes(); toast('Lista svuotata');
+  });
+}
+
+function renderAthletes() {
+  if (!currentRace) return;
+  const grid = document.getElementById('athletes-grid');
+  const count = currentRace.athletes.length;
+  document.getElementById('athlete-count-badge').textContent = count + ' atleti';
+  document.getElementById('ri-count').textContent = count;
+  if (!count) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👥</div><div class="empty-text">Nessuna atleta.<br>Usare il form sopra per aggiungere.</div></div>`;
+    return;
+  }
+  grid.innerHTML = currentRace.athletes.map(a => {
+    const v = currentRace.votes[a.id] || {};
+    const filled = ['t1','t2','t3','a1','a2','a3'].filter(f => v[f] !== undefined && v[f] !== '').length;
+    const status = filled === 6 ? '✅' : filled > 0 ? '🔶' : '⬜';
+    return `<div class="athlete-chip">
+      <div class="athlete-chip-num">${a.num}</div>
+      <div class="athlete-chip-info">
+        <div class="athlete-chip-name">${a.name}</div>
+        <div class="athlete-chip-club">${a.club || '—'}</div>
+      </div>
+      <span class="athlete-chip-status" title="${filled}/6 voti">${status}</span>
+      <button class="btn btn-danger" style="padding:0.3rem 0.5rem; font-size:0.65rem;" onclick="removeAthlete('${a.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleImport() {
+  const el = document.getElementById('import-area');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function importAthletes() {
+  const text = document.getElementById('import-text').value.trim();
+  if (!text) return;
+  let next = currentRace.athletes.length ? Math.max(...currentRace.athletes.map(a=>a.num))+1 : 1;
+  let added = 0;
+  text.split('\n').forEach(line => {
+    const parts = line.trim().split(',').map(s=>s.trim());
+    if (parts[0]) { currentRace.athletes.push({id:uid(),name:parts[0],club:parts[1]||'',num:next++}); added++; }
+  });
+  currentRace.athletes.sort((a,b)=>a.num-b.num);
+  saveCurrentRace(); renderAthletes();
+  document.getElementById('import-text').value='';
+  toggleImport();
+  toast(`${added} atleti importate ✓`);
+}
+function loadDemo() {
+  const demo=[['Giulia Ferretti','ASD Pattinatori Roma'],['Sofia Mancini','Skating Club Milano'],['Valentina Conti','Rullette Torino'],['Martina Esposito','ASD Speed Napoli'],['Chiara Romano','Pattinaggio Firenze'],['Alessia Ricci','Skating Club Bologna'],['Francesca Galli','ASD Veneto Skate'],['Eleonora Bruno','Rullette Palermo']];
+  let next = currentRace.athletes.length ? Math.max(...currentRace.athletes.map(a=>a.num))+1 : 1;
+  demo.forEach(([name,club])=>currentRace.athletes.push({id:uid(),name,club,num:next++}));
+  saveCurrentRace(); renderAthletes(); toast('8 atleti demo aggiunte');
+}
+
+// ═══════════════════════════════════════════════════════════
+// VOTES
+// ═══════════════════════════════════════════════════════════
+function renderVotesTable() {
+  if (!currentRace) return;
+  const tbody = document.getElementById('votes-tbody');
+  if (!currentRace.athletes.length) {
+    tbody.innerHTML = `<tr><td colspan="12" class="empty" style="padding:2rem;">Aggiungi atleti prima di inserire i voti</td></tr>`;
+    updateProgress(); return;
+  }
+  tbody.innerHTML = currentRace.athletes.map(a => {
+    const v = currentRace.votes[a.id] || {};
+    const gv = f => v[f] !== undefined && v[f] !== '' ? parseFloat(v[f]) : null;
+    const tv = [gv('t1'),gv('t2'),gv('t3')]; const av = [gv('a1'),gv('a2'),gv('a3')];
+    const avgT = tv.every(x=>x!==null) ? (tv.reduce((s,x)=>s+x,0)/3) : null;
+    const avgA = av.every(x=>x!==null) ? (av.reduce((s,x)=>s+x,0)/3) : null;
+    const total = avgT!==null && avgA!==null ? avgT+avgA : null;
+    const inp = (f,type) => {
+      const val = v[f]!==undefined ? v[f] : '';
+      return `<td><input type="number" class="score-in ${val!==''?'has-val':''}"
+        value="${val}" min="0" max="10" step="0.1" placeholder="—"
+        onchange="setVote('${a.id}','${f}',this.value)"
+        oninput="setVote('${a.id}','${f}',this.value)"
+        onfocus="this.select()"></td>`;
+    };
+    const avgCell = (val, cls) => val!==null
+      ? `<td><span class="avg-cell ${cls}">${val.toFixed(2)}</span></td>`
+      : `<td><span class="avg-cell empty">—</span></td>`;
+    return `<tr>
+      <td style="color:var(--text3);font-size:0.7rem;">${a.num}</td>
+      <td class="col-name" style="font-weight:600;">${a.name}</td>
+      <td class="hide-sm" style="color:var(--text2);font-size:0.72rem;">${a.club||''}</td>
+      ${inp('t1','tech')}${inp('t2','tech')}${inp('t3','tech')}
+      ${avgCell(avgT,'tech')}
+      ${inp('a1','art')}${inp('a2','art')}${inp('a3','art')}
+      ${avgCell(avgA,'art')}
+      <td>${total!==null ? `<span class="avg-cell total">${total.toFixed(2)}</span>` : '<span class="avg-cell empty">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  updateProgress();
+}
+
+function setVote(id, field, value) {
+  if (!currentRace.votes[id]) currentRace.votes[id] = {};
+  const n = parseFloat(value);
+  currentRace.votes[id][field] = (value===''||isNaN(n)) ? '' : Math.min(10,Math.max(0,n));
+  saveCurrentRace();
+  updateProgress();
+  // live update ranking if visible
+  if (document.getElementById('tab-content-ranking').style.display !== 'none') renderRanking();
+}
+
+function updateProgress() {
+  if (!currentRace) return;
+  let complete=0;
+  currentRace.athletes.forEach(a=>{
+    const v=currentRace.votes[a.id]||{};
+    if(['t1','t2','t3','a1','a2','a3'].every(f=>v[f]!==undefined&&v[f]!=='')) complete++;
+  });
+  const total = currentRace.athletes.length;
+  const pct = total ? (complete/total*100) : 0;
+  document.getElementById('votes-progress-fill').style.width = pct+'%';
+  document.getElementById('votes-progress-label').textContent = `${complete} / ${total} complete`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RANKING
+// ═══════════════════════════════════════════════════════════
+function getScores() {
+  if (!currentRace) return [];
+  return currentRace.athletes.map(a => {
+    const v = currentRace.votes[a.id]||{};
+    const gv = f => v[f]!==undefined&&v[f]!=='' ? parseFloat(v[f]) : null;
+    const t=[gv('t1'),gv('t2'),gv('t3')]; const ar=[gv('a1'),gv('a2'),gv('a3')];
+    const tOk=t.every(x=>x!==null); const aOk=ar.every(x=>x!==null);
+    const avgT=tOk ? t.reduce((s,x)=>s+x,0)/3 : null;
+    const avgA=aOk ? ar.reduce((s,x)=>s+x,0)/3 : null;
+    const total=avgT!==null&&avgA!==null ? avgT+avgA : null;
+    return {...a, avgT, avgA, total, tOk, aOk};
+  });
+}
+
+function setSortBy(by) {
+  sortBy=by;
+  ['total','tech','art'].forEach(k => {
+    const el = document.getElementById('sort-'+k);
+    el.style.borderColor = k===by ? 'var(--c1)' : '';
+    el.style.color = k===by ? 'var(--text)' : '';
+  });
+  renderRanking();
+}
+
+function renderRanking() {
+  const scores = getScores();
+  const sorted = [...scores].sort((a,b)=>{
+    const ka = sortBy==='tech'?a.avgT : sortBy==='art'?a.avgA : a.total;
+    const kb = sortBy==='tech'?b.avgT : sortBy==='art'?b.avgA : b.total;
+    if(ka===null&&kb===null) return 0; if(ka===null) return 1; if(kb===null) return -1;
+    return kb-ka;
+  });
+
+  // Stats
+  const withTot = sorted.filter(r=>r.total!==null);
+  const complete = scores.filter(r=>r.tOk&&r.aOk).length;
+  const maxTot = withTot.length ? Math.max(...withTot.map(r=>r.total)).toFixed(2) : '—';
+  const avgTot = withTot.length ? (withTot.reduce((s,r)=>s+r.total,0)/withTot.length).toFixed(2) : '—';
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-tile"><div class="stat-tile-label">In gara</div><div class="stat-tile-val">${currentRace.athletes.length}</div></div>
+    <div class="stat-tile"><div class="stat-tile-label">Schede complete</div><div class="stat-tile-val" style="color:var(--total)">${complete}</div></div>
+    <div class="stat-tile"><div class="stat-tile-label">Punteggio max</div><div class="stat-tile-val c1">${maxTot}</div></div>
+    <div class="stat-tile"><div class="stat-tile-label">Media generale</div><div class="stat-tile-val" style="color:var(--tech)">${avgTot}</div></div>
+  `;
+
+  if (!sorted.length) {
+    document.getElementById('ranking-list').innerHTML=`<div class="empty"><div class="empty-icon">🏆</div><div class="empty-text">Aggiungi atleti e inserisci i voti</div></div>`;
+    return;
+  }
+  const medals={1:'🥇',2:'🥈',3:'🥉'};
+  const maxScore = withTot.length ? Math.max(...withTot.map(r=>r.total)) : 20;
+  document.getElementById('ranking-list').innerHTML = sorted.map((r,i)=>{
+    const pos=i+1;
+    return `<div class="rank-card pos-${pos<=3?pos:'other'}" style="animation-delay:${i*0.03}s">
+      <div class="rank-pos">
+        <div class="rank-num ${pos>3?'normal':''}">${pos}</div>
+        <div class="rank-medal">${medals[pos]||''}</div>
+      </div>
+      <div class="rank-info">
+        <div class="rank-name">${r.name}</div>
+        <div class="rank-club">${r.club||'—'} · #${r.num}</div>
+        ${r.total!==null ? `<div style="margin-top:0.35rem; display:flex; align-items:center; gap:0.4rem;">
+          <div style="height:3px; border-radius:2px; background:var(--cg); width:${(r.total/maxScore*80).toFixed(0)}px; max-width:120px;"></div>
+        </div>` : ''}
+      </div>
+      <div class="rank-scores">
+        <div class="score-badge tech">
+          <span class="score-badge-label">Tecnica</span>
+          <span class="score-badge-val">${r.avgT!==null?r.avgT.toFixed(2):'—'}</span>
+        </div>
+        <div class="score-badge art">
+          <span class="score-badge-label">Artistica</span>
+          <span class="score-badge-val">${r.avgA!==null?r.avgA.toFixed(2):'—'}</span>
+        </div>
+        <div class="score-badge total">
+          <span class="score-badge-label">Totale</span>
+          <span class="score-badge-val">${r.total!==null?r.total.toFixed(2):'—'}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ARCHIVE
+// ═══════════════════════════════════════════════════════════
+function confirmEndRace() {
+  showModal('🏁 Archivia gara', `Archiviare "${currentRace.name}"? Potrà essere consultata e riesportata in qualsiasi momento dall'archivio.`, () => {
+    archiveRace();
+  }, 'Archivia');
+}
+
+function archiveRace() {
+  if (!currentRace) return;
+  currentRace.archived = true;
+  currentRace.archivedAt = new Date().toISOString();
+  // Remove if already exists (re-archive)
+  archive = archive.filter(r => r.id !== currentRace.id);
+  archive.unshift(currentRace);
+  localStorage.setItem('ss_archive', JSON.stringify(archive));
+  currentRace = null;
+  toast('Gara archiviata! ✓');
+  showScreen('archive');
+}
+
+function saveCurrentRace() {
+  if (!currentRace) return;
+  // Also update in archive if it was already saved there (autosave)
+  const idx = archive.findIndex(r => r.id === currentRace.id);
+  if (idx >= 0) { archive[idx] = currentRace; localStorage.setItem('ss_archive', JSON.stringify(archive)); }
+  // Also keep in sessionStorage as backup
+  sessionStorage.setItem('ss_current', JSON.stringify(currentRace));
+}
+
+function renderArchive() {
+  const grid = document.getElementById('archive-grid');
+  if (!archive.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;padding:4rem 1rem;"><div class="empty-icon">📁</div><div class="empty-text">Nessuna gara archiviata ancora.<br>Completa una gara per vederla qui.</div></div>`;
+    return;
+  }
+  grid.innerHTML = archive.map(r => {
+    const complete = r.athletes.filter(a => {
+      const v=r.votes[a.id]||{};
+      return ['t1','t2','t3','a1','a2','a3'].every(f=>v[f]!==undefined&&v[f]!=='');
+    }).length;
+    const enteClass = r.ente || 'aics';
+    return `<div class="archive-card">
+      <span class="archive-card-ente ${enteClass}">${(r.ente||'aics').toUpperCase()}</span>
+      <div class="archive-card-name">${r.name}</div>
+      <div class="archive-card-meta">${formatDate(r.date)} · ${r.place} · ${r.category}</div>
+      <div class="archive-card-stats">
+        <div class="archive-card-stat"><strong>${r.athletes.length}</strong>atleti</div>
+        <div class="archive-card-stat"><strong>${complete}</strong>schede ok</div>
+      </div>
+      <div class="archive-card-actions">
+        <button class="btn btn-ghost btn-sm" onclick="reopenRace('${r.id}')">📂 Riapri</button>
+        <button class="btn btn-primary btn-sm" onclick="archivePDFRanking('${r.id}')">📄 PDF Class.</button>
+        <button class="btn btn-primary btn-sm" onclick="archivePDFVoti('${r.id}')">📄 PDF Voti</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteArchivedRace('${r.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function reopenRace(id) {
+  const r = archive.find(x => x.id == id);
+  if (!r) return;
+  currentRace = JSON.parse(JSON.stringify(r));
+  applyEnteTheme(r.ente||'aics');
+  ente = r.ente||'aics';
+  document.getElementById('topbar-ente-badge').textContent = (r.ente||'aics').toUpperCase();
+  document.getElementById('topbar-race-title').textContent = r.name;
+  document.getElementById('ri-name').textContent = r.name;
+  document.getElementById('ri-date').textContent = formatDate(r.date);
+  document.getElementById('ri-place').textContent = r.place;
+  document.getElementById('ri-cat').textContent = r.category;
+  document.getElementById('ri-count').textContent = r.athletes.length;
+  showScreen('main'); showTab('athletes'); renderAthletes();
+  toast(`Gara "${r.name}" riaperta`);
+}
+
+function deleteArchivedRace(id) {
+  showModal('Elimina gara', 'Eliminare definitivamente questa gara dall\'archivio? Azione irreversibile.', () => {
+    archive = archive.filter(r => r.id != id);
+    localStorage.setItem('ss_archive', JSON.stringify(archive));
+    renderArchive(); toast('Gara eliminata');
+  }, 'Elimina', true);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PDF — helpers
+// ═══════════════════════════════════════════════════════════
+function buildRankedScores(race) {
+  const scored = race.athletes.map(a => {
+    const v=race.votes[a.id]||{};
+    const gv=f=>v[f]!==undefined&&v[f]!==''?parseFloat(v[f]):null;
+    const t=[gv('t1'),gv('t2'),gv('t3')]; const ar=[gv('a1'),gv('a2'),gv('a3')];
+    const avgT=t.every(x=>x!==null)?t.reduce((s,x)=>s+x,0)/3:null;
+    const avgA=ar.every(x=>x!==null)?ar.reduce((s,x)=>s+x,0)/3:null;
+    const total=avgT!==null&&avgA!==null?avgT+avgA:null;
+    return {...a,avgT,avgA,total,t,ar};
+  });
+  return scored.sort((a,b)=>{
+    if(a.total===null&&b.total===null)return 0;if(a.total===null)return 1;if(b.total===null)return -1;
+    return b.total-a.total;
+  });
+}
+
+function pdfHeaderFn(doc, race, docTitle) {
+  const pw=doc.internal.pageSize.getWidth();
+  const enteColor = (race.ente||'aics')==='aics' ? [255,107,53] : [0,194,255];
+  // Top bar
+  doc.setFillColor(...enteColor);
+  doc.rect(0,0,pw,11,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8);
+  doc.setTextColor(255,255,255);
+  doc.text('SKATE SCORE · ' + (race.ente||'AICS').toUpperCase(), 12, 7.5);
+  doc.text(race.name.toUpperCase(), pw-12, 7.5, {align:'right'});
+  // Main title
+  doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  doc.setTextColor(20,28,45);
+  doc.text(docTitle, pw/2, 24, {align:'center'});
+  // Meta strip
+  doc.setFillColor(245,246,250);
+  doc.rect(0,30,pw,18,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,90,110);
+  const meta=[['Gara',race.name],['Data',formatDate(race.date)],['Luogo',race.place],['Categoria',race.category],['Ente',(race.ente||'aics').toUpperCase()]];
+  const sw=(pw-24)/meta.length;
+  meta.forEach(([label,val],i)=>{
+    const x=12+sw*i;
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(150,160,180);
+    doc.text(label.toUpperCase(), x, 37);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(20,28,45);
+    doc.text(String(val), x, 44);
+  });
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(170,175,185);
+  doc.text('Generato il '+new Date().toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}), pw-12, 44, {align:'right'});
+}
+
+function pdfFooterFn(doc, race) {
+  const pw=doc.internal.pageSize.getWidth(), ph=doc.internal.pageSize.getHeight();
+  const pages=doc.internal.getNumberOfPages();
+  const enteColor=(race.ente||'aics')==='aics'?[255,107,53]:[0,194,255];
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i);
+    doc.setFillColor(...enteColor);
+    doc.rect(0,ph-8,pw,8,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(255,255,255);
+    doc.text(`${race.name} · ${(race.ente||'aics').toUpperCase()} · ${race.category}`, 12, ph-2.8);
+    doc.text(`Pag. ${i} / ${pages}`, pw-12, ph-2.8, {align:'right'});
+  }
+}
+
+function doPDFRanking(race) {
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const pw=doc.internal.pageSize.getWidth();
+  const ranked=buildRankedScores(race);
+  pdfHeaderFn(doc, race, 'CLASSIFICA FINALE');
+  const complete=ranked.filter(r=>r.avgT!==null&&r.avgA!==null).length;
+  const withTot=ranked.filter(r=>r.total!==null);
+  const maxTot=withTot.length?Math.max(...withTot.map(r=>r.total)).toFixed(2):'—';
+  const avgTot=withTot.length?(withTot.reduce((s,r)=>s+r.total,0)/withTot.length).toFixed(2):'—';
+  const enteColor=(race.ente||'aics')==='aics'?[255,107,53]:[0,194,255];
+  // Stat boxes
+  doc.setFillColor(245,246,250); doc.roundedRect(12,52,pw-24,18,2,2,'F');
+  [['Atleti',race.athletes.length],['Schede ok',complete],['Punteggio max',maxTot],['Media',avgTot]].forEach(([l,v],i)=>{
+    const sw=(pw-24)/4, x=12+sw*i+sw/2;
+    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(150,160,180);
+    doc.text(l.toUpperCase(), x, 59, {align:'center'});
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...enteColor);
+    doc.text(String(v), x, 66.5, {align:'center'});
+  });
+  const medals={1:'1.',2:'2.',3:'3.'};
+  doc.autoTable({
+    startY:74,
+    head:[['Pos.','N°','Atleta','Club / Società','Media Tecnica','Media Artistica','Totale']],
+    body:ranked.map((r,i)=>[
+      (medals[i+1]||String(i+1)),r.num,r.name,r.club||'',
+      r.avgT!==null?r.avgT.toFixed(2):'—',
+      r.avgA!==null?r.avgA.toFixed(2):'—',
+      r.total!==null?r.total.toFixed(2):'—'
+    ]),
+    theme:'grid',
+    styles:{font:'helvetica',fontSize:8.5,cellPadding:3,textColor:[30,35,50]},
+    headStyles:{fillColor:[20,28,45],textColor:enteColor,fontStyle:'bold',fontSize:7.5,halign:'center'},
+    columnStyles:{
+      0:{halign:'center',cellWidth:16,fontStyle:'bold'},
+      1:{halign:'center',cellWidth:12},
+      2:{cellWidth:50,fontStyle:'bold'},
+      3:{cellWidth:50,textColor:[100,110,130],fontSize:8},
+      4:{halign:'center',cellWidth:24,textColor:[56,189,248]},
+      5:{halign:'center',cellWidth:24,textColor:[245,158,11]},
+      6:{halign:'center',cellWidth:20,fontStyle:'bold',textColor:[52,211,153]},
+    },
+    alternateRowStyles:{fillColor:[248,249,252]},
+    didParseCell(data){if(data.section==='body'&&data.row.index<3){data.cell.styles.fillColor=[255,252,235];}},
+    margin:{left:12,right:12},
+  });
+  pdfFooterFn(doc, race);
+  doc.save(`classifica_${(race.ente||'aics')}_${race.name.replace(/\s+/g,'_')}.pdf`);
+}
+
+function doPDFVoti(race) {
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const pw=doc.internal.pageSize.getWidth();
+  const sorted=[...race.athletes].sort((a,b)=>a.num-b.num);
+  pdfHeaderFn(doc, race, 'SCHEDA VOTI ATLETI');
+  doc.setFillColor(245,246,250); doc.roundedRect(12,52,pw-24,10,2,2,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,130,150);
+  doc.text('Scala 0.0–10.0  ·  Media T = (T1+T2+T3)/3  ·  Media A = (A1+A2+A3)/3  ·  Totale = Media T + Media A', pw/2, 58.5, {align:'center'});
+  const enteColor=(race.ente||'aics')==='aics'?[255,107,53]:[0,194,255];
+  doc.autoTable({
+    startY:66,
+    head:[['N°','Atleta','Club / Società','T1','T2','T3','Med.T','A1','A2','A3','Med.A','TOTALE']],
+    body:sorted.map(a=>{
+      const v=race.votes[a.id]||{};
+      const gv=f=>v[f]!==undefined&&v[f]!==''?parseFloat(v[f]).toFixed(1):'—';
+      const t=['t1','t2','t3'].map(f=>{const x=v[f];return x!==undefined&&x!==''?parseFloat(x):null;});
+      const ar=['a1','a2','a3'].map(f=>{const x=v[f];return x!==undefined&&x!==''?parseFloat(x):null;});
+      const avgT=t.every(x=>x!==null)?( t.reduce((s,x)=>s+x,0)/3).toFixed(2):'—';
+      const avgA=ar.every(x=>x!==null)?(ar.reduce((s,x)=>s+x,0)/3).toFixed(2):'—';
+      const total=avgT!=='—'&&avgA!=='—'?(parseFloat(avgT)+parseFloat(avgA)).toFixed(2):'—';
+      return [a.num,a.name,a.club||'',gv('t1'),gv('t2'),gv('t3'),avgT,gv('a1'),gv('a2'),gv('a3'),avgA,total];
+    }),
+    theme:'grid',
+    styles:{font:'helvetica',fontSize:8,cellPadding:2.5,textColor:[30,35,50]},
+    headStyles:{fillColor:[20,28,45],textColor:enteColor,fontStyle:'bold',fontSize:7,halign:'center'},
+    columnStyles:{
+      0:{halign:'center',cellWidth:12},1:{cellWidth:44,fontStyle:'bold'},2:{cellWidth:44,fontSize:7.5,textColor:[100,110,130]},
+      3:{halign:'center',cellWidth:15,textColor:[56,189,248]},4:{halign:'center',cellWidth:15,textColor:[56,189,248]},5:{halign:'center',cellWidth:15,textColor:[56,189,248]},
+      6:{halign:'center',cellWidth:19,fontStyle:'bold',textColor:[56,189,248],fillColor:[235,246,255]},
+      7:{halign:'center',cellWidth:15,textColor:[245,158,11]},8:{halign:'center',cellWidth:15,textColor:[245,158,11]},9:{halign:'center',cellWidth:15,textColor:[245,158,11]},
+      10:{halign:'center',cellWidth:19,fontStyle:'bold',textColor:[245,158,11],fillColor:[255,249,235]},
+      11:{halign:'center',cellWidth:20,fontStyle:'bold',textColor:[52,211,153],fillColor:[235,255,248]},
+    },
+    alternateRowStyles:{fillColor:[248,249,252]},
+    margin:{left:12,right:12},
+  });
+  pdfFooterFn(doc, race);
+  doc.save(`voti_${(race.ente||'aics')}_${race.name.replace(/\s+/g,'_')}.pdf`);
+}
+
+function exportPDFRanking() { if(currentRace) doPDFRanking(currentRace); }
+function exportPDFVoti() { if(currentRace) doPDFVoti(currentRace); }
+function archivePDFRanking(id) { const r=archive.find(x=>x.id==id); if(r) doPDFRanking(r); }
+function archivePDFVoti(id) { const r=archive.find(x=>x.id==id); if(r) doPDFVoti(r); }
+
+function exportCSV() {
+  if(!currentRace) return;
+  const ranked=buildRankedScores(currentRace);
+  const rows=ranked.map((r,i)=>[i+1,r.num,r.name,r.club||'',r.avgT!==null?r.avgT.toFixed(2):'',r.avgA!==null?r.avgA.toFixed(2):'',r.total!==null?r.total.toFixed(2):''].join(','));
+  const blob=new Blob(['Pos,N,Atleta,Club,MediaT,MediaA,Totale\n'+rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`classifica_${currentRace.name.replace(/\s+/g,'_')}.csv`; a.click();
+  toast('CSV esportato ✓');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════
+let modalCb = null;
+function showModal(title, text, cb, confirmLabel='Conferma', isDanger=false) {
+  modalCb = cb;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-text').textContent = text;
+  const btn = document.getElementById('modal-confirm-btn');
+  btn.textContent = confirmLabel;
+  btn.className = 'btn btn-sm ' + (isDanger ? 'btn-danger' : 'btn-primary');
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); modalCb=null; }
+document.getElementById('modal-confirm-btn').onclick = () => { closeModal(); if(modalCb) modalCb(); };
+document.getElementById('modal-overlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function toast(msg) {
+  const el=document.getElementById('toast-el');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+
+// ═══════════════════════════════════════════════════════════
+// PWA — Service Worker + Install Prompt + Update
+// ═══════════════════════════════════════════════════════════
+let deferredInstallPrompt = null;
+let swRegistration = null;
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      swRegistration = await navigator.serviceWorker.register('./sw.js');
+      console.log('[SW] Registrato:', swRegistration.scope);
+
+      // Check for updates
+      swRegistration.addEventListener('updatefound', () => {
+        const newWorker = swRegistration.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available
+            document.getElementById('pwa-update-banner').style.display = 'flex';
+          }
+        });
+      });
+    } catch (err) {
+      console.warn('[SW] Registrazione fallita:', err);
+    }
+  });
+
+  // Reload when new SW takes control
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) { refreshing = true; window.location.reload(); }
+  });
+}
+
+function applyUpdate() {
+  if (swRegistration && swRegistration.waiting) {
+    swRegistration.waiting.postMessage('SKIP_WAITING');
+  }
+}
+
+// Install prompt (Android Chrome)
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) { banner.style.display = 'flex'; }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      document.getElementById('pwa-install-banner').style.display = 'none';
+      if (outcome === 'accepted') toast('Skate Score installata! 🛼');
+    });
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  toast('App installata con successo ✓');
+  const b = document.getElementById('pwa-install-banner');
+  if (b) b.style.display = 'none';
+  deferredInstallPrompt = null;
+});
+
+// iOS Safari: show manual instructions if standalone not detected
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = sessionStorage.getItem('ios-hint-dismissed');
+  if (isIOS && !isStandalone && !dismissed) {
+    setTimeout(() => {
+      // Show a subtle iOS hint after 3 seconds
+      const hint = document.createElement('div');
+      hint.id = 'ios-hint';
+      hint.style.cssText = `position:fixed;bottom:0;left:0;right:0;z-index:300;
+        background:linear-gradient(135deg,#111827,#1a2236);
+        border-top:2px solid var(--c1);
+        padding:1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+        display:flex;align-items:center;gap:1rem;
+        box-shadow:0 -8px 32px rgba(0,0,0,0.5);`;
+      hint.innerHTML = `
+        <span style="font-size:1.6rem;">🛼</span>
+        <div style="flex:1;">
+          <div style="font-size:0.8rem;font-weight:700;color:#fff;font-family:Outfit,sans-serif;">Installa su iPhone</div>
+          <div style="font-size:0.68rem;color:var(--text2);margin-top:2px;font-family:Outfit,sans-serif;">
+            Tocca <strong style="color:#fff;">□↑ Condividi</strong> → <strong style="color:#fff;">Aggiungi a schermata Home</strong>
+          </div>
+        </div>
+        <button onclick="this.parentElement.remove();sessionStorage.setItem('ios-hint-dismissed','1')"
+          style="background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:8px;
+          font-family:Outfit,sans-serif;font-size:0.72rem;padding:0.5rem 0.7rem;cursor:pointer;">✕</button>`;
+      document.body.appendChild(hint);
+    }, 3000);
+  }
+});
+
+// Update theme-color when ente changes
+const origApplyEnteTheme = applyEnteTheme;
+// Extend applyEnteTheme to also update meta theme-color
+const _origApply = applyEnteTheme;
+window._pwaEnteHooked = true;
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+selectEnte('aics');
+// Restore in-progress race from session
+const saved = sessionStorage.getItem('ss_current');
+if (saved) {
+  try {
+    const r = JSON.parse(saved);
+    if (r && r.id && !r.archived) {
+      currentRace = r;
+      applyEnteTheme(r.ente||'aics');
+      ente = r.ente||'aics';
+      document.getElementById('topbar-ente-badge').textContent=(r.ente||'aics').toUpperCase();
+      document.getElementById('topbar-race-title').textContent=r.name;
+      document.getElementById('ri-name').textContent=r.name;
+      document.getElementById('ri-date').textContent=formatDate(r.date);
+      document.getElementById('ri-place').textContent=r.place;
+      document.getElementById('ri-cat').textContent=r.category;
+      document.getElementById('ri-count').textContent=r.athletes.length;
+      showScreen('main'); showTab('athletes'); renderAthletes();
+    }
+  } catch(e) {}
+}
+// Set today's date in welcome form
+const d=new Date(), pad=n=>String(n).padStart(2,'0');
+const dateEl=document.getElementById('inp-race-date');
+if(dateEl) dateEl.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+</script>
+</body>
+</html>
