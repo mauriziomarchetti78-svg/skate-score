@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-512.svg">
 <link rel="icon" type="image/svg+xml" href="icon-192.svg">
-<title>Skate Score</title>
+<title>Skate Score v3.0</title>
 <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -848,8 +848,10 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
       </button>
     </div>
 
-    <div style="margin-top:1.5rem;">
+    <div style="margin-top:1.5rem; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
       <button class="btn btn-ghost" onclick="showScreen('archive')">📁 Archivio gare precedenti</button>
+      <button class="btn btn-ghost" style="border-color:rgba(239,68,68,0.3);color:#f87171;font-size:0.7rem;" onclick="resetAllData()">🗑 Cancella tutti i dati</button>
+      <div style="font-size:0.6rem;color:var(--text3);margin-top:0.5rem;">versione 3.0</div>
     </div>
   </div>
 </div>
@@ -1051,6 +1053,23 @@ let ente = 'aics';
 let currentRace = null;
 let archive = [];
 let sortBy = 'total';
+
+function resetAllData() {
+  showModal(
+    '🗑 Cancella tutti i dati',
+    'Verranno eliminati TUTTI i dati: gara in corso e archivio completo. Azione irreversibile. Sei sicuro?',
+    () => {
+      localStorage.removeItem('ss_current');
+      localStorage.removeItem('ss_archive');
+      archive = [];
+      currentRace = null;
+      toast('Dati cancellati ✓');
+      showScreen('welcome');
+    },
+    'Cancella tutto',
+    true
+  );
+}
 
 function loadArchive() {
   try { archive = JSON.parse(localStorage.getItem('ss_archive') || '[]'); }
