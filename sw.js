@@ -2,8 +2,8 @@
 // Skate Score — Service Worker v2
 // Incrementa CACHE_VERSION per forzare aggiornamento
 // ═══════════════════════════════════════════════════════════
-const CACHE_VERSION = 'skate-score-v2';
-const CACHE_CDN = 'skate-score-cdn-v2';
+const CACHE_VERSION = 'skate-score-v3';
+const CACHE_CDN = 'skate-score-cdn-v3';
 
 // File locali — sempre in cache
 const LOCAL_ASSETS = [
