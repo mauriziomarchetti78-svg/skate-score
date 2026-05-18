@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-512.svg">
 <link rel="icon" type="image/svg+xml" href="icon-192.svg">
-<title>Skate Score v3.0</title>
+<title>Skate Score v4.1</title>
 <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -795,7 +795,7 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
   <div class="container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem 1.25rem;">
     <div class="welcome-logo">🛼</div>
     <h1 class="welcome-title">Skate Score</h1>
-    <p class="welcome-sub">Gestione gare di pattinaggio su rotelle · Categoria Professional</p>
+    <p class="welcome-sub">Gestione gare di pattinaggio su rotelle · AICS e UISP</p>
 
     <div class="section-label" style="width:100%;max-width:520px;">Scegli l'ente organizzatore</div>
     <div class="ente-cards">
@@ -815,6 +815,9 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
 
     <div class="setup-form" id="setup-form">
       <div class="setup-form-title">Dati della gara</div>
+      <div id="selected-ente-badge" style="display:none; font-size:0.68rem; font-weight:700;
+        padding:0.3rem 0.8rem; border-radius:20px; margin-bottom:1rem;
+        letter-spacing:0.08em;"></div>
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label>Nome della gara</label>
@@ -833,13 +836,15 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
       </div>
       <div class="form-row">
         <div class="form-group">
+          <label>Tipo di gara</label>
+          <select id="inp-race-type" onchange="updateCategoryOptions()">
+            <option value="">-- Seleziona tipo --</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Categoria</label>
           <select id="inp-race-cat">
-            <option value="Professional">Professional</option>
-            <option value="Amateur">Amateur</option>
-            <option value="Junior">Junior</option>
-            <option value="Senior">Senior</option>
-            <option value="Altra">Altra</option>
+            <option value="">-- Prima seleziona il tipo --</option>
           </select>
         </div>
       </div>
@@ -851,7 +856,7 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
     <div style="margin-top:1.5rem; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
       <button class="btn btn-ghost" onclick="showScreen('archive')">📁 Archivio gare precedenti</button>
       <button class="btn btn-ghost" style="border-color:rgba(239,68,68,0.3);color:#f87171;font-size:0.7rem;" onclick="resetAllData()">🗑 Cancella tutti i dati</button>
-      <div style="font-size:0.6rem;color:var(--text3);margin-top:0.5rem;">versione 3.0</div>
+      <div style="font-size:0.6rem;color:var(--text3);margin-top:0.5rem;">versione 4.1</div>
     </div>
   </div>
 </div>
@@ -1096,9 +1101,20 @@ function showScreen(name) {
 // ═══════════════════════════════════════════════════════════
 function selectEnte(e) {
   ente = e;
+  localStorage.setItem('ss_ente_selection', e);
   document.querySelectorAll('.ente-card').forEach(c => c.classList.remove('selected'));
   document.getElementById('card-' + e).classList.add('selected');
   applyEnteTheme(e);
+  // Update type/category dropdowns for selected ente
+  updateTypeOptions();
+  // Update setup form title to show selected ente
+  const badge = document.getElementById('selected-ente-badge');
+  if (badge) {
+    badge.textContent = e.toUpperCase() + ' selezionato ✓';
+    badge.style.display = 'inline-block';
+    badge.style.background = e === 'aics' ? 'rgba(255,107,53,0.15)' : 'rgba(0,194,255,0.15)';
+    badge.style.color = e === 'aics' ? '#ff6b35' : '#00c2ff';
+  }
 }
 
 function applyEnteTheme(e) {
@@ -1122,20 +1138,41 @@ function applyEnteTheme(e) {
 // RACE SETUP
 // ═══════════════════════════════════════════════════════════
 function startRace() {
+  // Recupera ente dalla variabile o dal backup in localStorage
+  const savedEnte = localStorage.getItem('ss_ente_selection');
+  if (savedEnte && savedEnte !== ente) {
+    ente = savedEnte;
+    applyEnteTheme(ente);
+  }
   const name = document.getElementById('inp-race-name').value.trim();
   const date = document.getElementById('inp-race-date').value;
   const place = document.getElementById('inp-race-place').value.trim();
   const cat = document.getElementById('inp-race-cat').value;
+  if (!ente) { toast('Seleziona AICS o UISP prima di continuare'); return; }
   if (!name) { toast('Inserisci il nome della gara'); return; }
   if (!date) { toast('Inserisci la data'); return; }
+  const raceType = document.getElementById('inp-race-type') ? document.getElementById('inp-race-type').value : '';
+  if (!raceType) { toast('Seleziona il tipo di gara'); return; }
 
+  const raceTypeVal = document.getElementById('inp-race-type') ? document.getElementById('inp-race-type').value : '';
+  const raceTypeLabel = document.getElementById('inp-race-type') ? document.getElementById('inp-race-type').options[document.getElementById('inp-race-type').selectedIndex]?.text : '';
+  const scoreLimits = (GARA_TYPES[ente]||[]).find(t=>t.value===raceTypeVal) || {scoreMin:0,techMax:10,artMax:10,note:''};
+  window._scoreMin = scoreLimits.scoreMin;
+  window._techMax = scoreLimits.techMax;
+  window._artMax = scoreLimits.artMax;
   currentRace = {
     id: Date.now(),
     ente,
     name,
     date,
     place: place || '—',
+    raceType: raceTypeVal,
+    raceTypeLabel: raceTypeLabel,
     category: cat,
+    scoreMin: scoreLimits.scoreMin,
+    techMax: scoreLimits.techMax,
+    artMax: scoreLimits.artMax,
+    scoreNote: scoreLimits.note,
     athletes: [],
     votes: {},
     archived: false
@@ -1309,7 +1346,12 @@ function renderVotesTable() {
 function setVote(id, field, value) {
   if (!currentRace.votes[id]) currentRace.votes[id] = {};
   const n = parseFloat(value);
-  currentRace.votes[id][field] = (value===''||isNaN(n)) ? '' : Math.min(10,Math.max(0,n));
+  const minV = window._scoreMin || 0;
+  const maxT = window._techMax || 10;
+  const maxA = window._artMax || 10;
+  const isArt = field.startsWith('a');
+  const maxV = isArt ? maxA : maxT;
+  currentRace.votes[id][field] = (value===''||isNaN(n)) ? '' : Math.min(maxV, Math.max(minV, n));
   saveCurrentRace();
   updateProgress();
   // live update ranking if visible
@@ -1872,6 +1914,212 @@ window.addEventListener('load', () => {
   }
 });
 
+
+// ═══════════════════════════════════════════════════════════
+// CATEGORIE UFFICIALI AICS e UISP (dai 10 anni in su)
+// ═══════════════════════════════════════════════════════════
+const GARA_TYPES = {
+  aics: [
+    {
+      value: 'promozionale',
+      label: 'Gare Promozionali AICS',
+      scoreMin: 4.0, scoreMax: 9.0,
+      techMax: 8.5, artMax: 9.0,
+      note: 'Scala: Tecnica 4.0–8.5 · Artistica 4.0–9.0',
+      categories: [
+        'Principianti (2015-2014) — Basic',
+        'Principianti (2015-2014) — Plus',
+        'Principianti (2015-2014) — Master',
+        'Principianti (2015-2014) — Professional',
+        'Ragazzi (2013-2012) — Basic',
+        'Ragazzi (2013-2012) — Plus',
+        'Ragazzi (2013-2012) — Master',
+        'Ragazzi (2013-2012) — Professional',
+        'Giovanile gr.1 (2011-2010-2009) — Basic',
+        'Giovanile gr.1 (2011-2010-2009) — Plus',
+        'Giovanile gr.1 (2011-2010-2009) — Master',
+        'Giovanile gr.1 (2011-2010-2009) — Professional',
+        'Giovanile gr.2 (2008-2007-2006) — Basic',
+        'Giovanile gr.2 (2008-2007-2006) — Plus',
+        'Giovanile gr.2 (2008-2007-2006) — Master',
+        'Giovanile gr.2 (2008-2007-2006) — Professional',
+        'Giovanile gr.3 (2005 e prec.) — Basic',
+        'Giovanile gr.3 (2005 e prec.) — Plus',
+        'Giovanile gr.3 (2005 e prec.) — Master',
+        'Giovanile gr.3 (2005 e prec.) — Professional',
+      ]
+    },
+    {
+      value: 'livelli',
+      label: 'Gare AICS a Livelli di Difficoltà',
+      scoreMin: 0.0, scoreMax: 10.0,
+      techMax: 10.0, artMax: 10.0,
+      note: 'Scala: 0.0–10.0',
+      categories: [
+        'Junior Basic',
+        'Junior Medium',
+        'Junior Plus',
+        'Azzurrini Basic',
+        'Azzurrini Medium',
+        'Azzurrini Plus',
+        'AICS Giovani',
+        'AICS Giovani Plus',
+        'Special',
+      ]
+    },
+    {
+      value: 'categoria',
+      label: 'Gare di Categoria (Agonistica)',
+      scoreMin: 0.0, scoreMax: 10.0,
+      techMax: 10.0, artMax: 10.0,
+      note: 'Scala: 0.0–10.0',
+      categories: [
+        'Esordienti A (2015)',
+        'Esordienti B (2014)',
+        'Allievi A (2013)',
+        'Allievi B (2012)',
+        'Cadetti A (2011)',
+        'Cadetti B (2010)',
+        'Jeunesse (2009)',
+        'Juniores (2008-2007)',
+        'Seniores (2006 e prec.)',
+        'Esordienti Regionali A (2015)',
+        'Esordienti Regionali B (2014)',
+        'Allievi Regionali A (2013)',
+        'Allievi Regionali B (2012)',
+        'Allievi Regionali C (2011)',
+        'Divisione Nazionale A (2011-2010)',
+        'Divisione Nazionale B (2009)',
+        'Divisione Nazionale C (2008-2007)',
+        'Divisione Nazionale D (2006 e prec.)',
+        'Over 30',
+        'Over 40',
+      ]
+    }
+  ],
+  uisp: [
+    {
+      value: 'formula',
+      label: 'Formula UISP',
+      scoreMin: 0.0, scoreMax: 10.0,
+      techMax: 10.0, artMax: 10.0,
+      note: 'Scala: 0.0–10.0',
+      categories: [
+        'F Promo — Gruppo B (2016-2015)',
+        'F Promo — Gruppo C (2014 e prec.)',
+        'F1 — Gruppo B (2016-2015)',
+        'F1 — Gruppo C (2014 e prec.)',
+        'F2 — Gruppo A (2018-2015)',
+        'F2 — Gruppo B (2014 e prec.)',
+        'F3 — Gruppo A (2017-2013)',
+        'F3 — Gruppo B (2012 e prec.)',
+        'F4 — Gruppo A (2016-2012)',
+        'F4 — Gruppo B (2011 e prec.)',
+        'F5 — Gruppo A (2015-2011)',
+        'F5 — Gruppo B (2010 e prec.)',
+        'F6 — Gruppo A (2014-2010)',
+        'F6 — Gruppo B (2009 e prec.)',
+      ]
+    },
+    {
+      value: 'formula_dance',
+      label: 'Formula Dance UISP',
+      scoreMin: 0.0, scoreMax: 10.0,
+      techMax: 10.0, artMax: 10.0,
+      note: 'Scala: 0.0–10.0',
+      categories: [
+        'Formula Dance A',
+        'Formula Dance B',
+        'Formula Dance C',
+        'Formula Dance D',
+        'Formula Dance E',
+        'Formula Dance F',
+        'Formula Dance G',
+      ]
+    },
+    {
+      value: 'livelli_uisp',
+      label: 'Livelli UISP',
+      scoreMin: 0.0, scoreMax: 10.0,
+      techMax: 10.0, artMax: 10.0,
+      note: 'Scala: 0.0–10.0',
+      categories: [
+        'Livello 1',
+        'Livello 2',
+        'Livello 3',
+        'Livello 4',
+        'Livello 5',
+        'Livello 6',
+        'Livello 7',
+        'Livello 8',
+        'Livello 9',
+        'Livello 10',
+      ]
+    },
+    {
+      value: 'artistico_uisp',
+      label: 'Artistico UISP (Categoria)',
+      scoreMin: 0.0, scoreMax: 10.0,
+      techMax: 10.0, artMax: 10.0,
+      note: 'Scala: 0.0–10.0',
+      categories: [
+        'Esordienti',
+        'Allievi',
+        'Cadetti',
+        'Juniores',
+        'Seniores',
+        'Divisione Nazionale',
+      ]
+    }
+  ]
+};
+
+function updateCategoryOptions() {
+  const typeSelect = document.getElementById('inp-race-type');
+  const catSelect = document.getElementById('inp-race-cat');
+  const noteEl = document.getElementById('score-range-note');
+  const typeVal = typeSelect.value;
+
+  catSelect.innerHTML = '<option value="">-- Seleziona categoria --</option>';
+  if (!typeVal) return;
+
+  const types = GARA_TYPES[ente] || [];
+  const found = types.find(t => t.value === typeVal);
+  if (!found) return;
+
+  found.categories.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    catSelect.appendChild(opt);
+  });
+
+  // Update score note
+  if (noteEl) noteEl.textContent = found.note;
+
+  // Store score limits for use in vote validation
+  window._scoreMin = found.scoreMin;
+  window._techMax = found.techMax;
+  window._artMax = found.artMax;
+}
+
+function updateTypeOptions() {
+  const typeSelect = document.getElementById('inp-race-type');
+  if (!typeSelect) return;
+  typeSelect.innerHTML = '<option value="">-- Seleziona tipo --</option>';
+  const types = GARA_TYPES[ente] || [];
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.value; opt.textContent = t.label;
+    typeSelect.appendChild(opt);
+  });
+  document.getElementById('inp-race-cat').innerHTML = '<option value="">-- Prima seleziona il tipo --</option>';
+  // Reset note
+  const noteEl = document.getElementById('score-range-note');
+  if (noteEl) noteEl.textContent = '';
+  window._scoreMin = 0; window._techMax = 10; window._artMax = 10;
+}
+
+
 // ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
@@ -1890,6 +2138,9 @@ selectEnte('aics');
     r.athletes = r.athletes || [];
     r.votes = r.votes || {};
     currentRace = r;
+    window._scoreMin = r.scoreMin || 0;
+    window._techMax = r.techMax || 10;
+    window._artMax = r.artMax || 10;
     applyEnteTheme(r.ente||'aics');
     ente = r.ente||'aics';
     document.getElementById('topbar-ente-badge').textContent=(r.ente||'aics').toUpperCase();
@@ -1912,6 +2163,10 @@ selectEnte('aics');
 const d=new Date(), pad=n=>String(n).padStart(2,'0');
 const dateEl=document.getElementById('inp-race-date');
 if(dateEl) dateEl.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+// Restore ente selection if previously saved
+const savedEnteInit = localStorage.getItem('ss_ente_selection');
+if (savedEnteInit) selectEnte(savedEnteInit);
+else selectEnte('aics');;
 </script>
 </body>
 </html>
