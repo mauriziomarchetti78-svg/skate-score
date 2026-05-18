@@ -13,7 +13,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-512.svg">
 <link rel="icon" type="image/svg+xml" href="icon-192.svg">
-<title>Skate Score v4.1</title>
+<title>Skate Score v4.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -792,39 +792,53 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
      SCREEN: WELCOME
 ═══════════════════════════════════ -->
 <div id="screen-welcome" class="screen active">
-  <div class="container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem 1.25rem;">
-    <div class="welcome-logo">🛼</div>
-    <h1 class="welcome-title">Skate Score</h1>
-    <p class="welcome-sub">Gestione gare di pattinaggio su rotelle · AICS e UISP</p>
+  <div style="min-height:100vh; padding:1.5rem 1.25rem 3rem; display:flex; flex-direction:column; align-items:center; max-width:520px; margin:0 auto; width:100%;">
 
-    <div class="section-label" style="width:100%;max-width:520px;">Scegli l'ente organizzatore</div>
-    <div class="ente-cards">
-      <div class="ente-card aics" id="card-aics" onclick="selectEnte('aics')">
-        <div class="ente-card-check">✓</div>
-        <div class="ente-card-icon">🟠</div>
-        <div class="ente-card-name">AICS</div>
-        <div class="ente-card-desc">Associazione Italiana<br>Cultura e Sport</div>
-      </div>
-      <div class="ente-card uisp" id="card-uisp" onclick="selectEnte('uisp')">
-        <div class="ente-card-check">✓</div>
-        <div class="ente-card-icon">🔵</div>
-        <div class="ente-card-name">UISP</div>
-        <div class="ente-card-desc">Unione Italiana<br>Sport Per tutti</div>
+    <!-- LOGO -->
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <div class="welcome-logo">🛼</div>
+      <h1 class="welcome-title">Skate Score</h1>
+      <p class="welcome-sub">Gestione gare di pattinaggio su rotelle</p>
+    </div>
+
+    <!-- STEP 1: ENTE — due grandi pulsanti toggle sempre visibili -->
+    <div style="width:100%; margin-bottom:1.25rem;">
+      <div style="font-size:0.65rem; font-weight:700; letter-spacing:0.15em; text-transform:uppercase;
+        color:var(--text3); margin-bottom:0.6rem;">① Ente organizzatore</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+        <button id="btn-aics" onclick="selectEnte('aics')"
+          style="padding:1.1rem 0.75rem; border-radius:14px; border:2px solid rgba(255,107,53,0.3);
+          background:rgba(255,107,53,0.05); cursor:pointer; transition:all 0.2s;
+          display:flex; flex-direction:column; align-items:center; gap:0.4rem;">
+          <span style="font-size:2rem;">🟠</span>
+          <span style="font-family:Georgia,serif; font-size:1.4rem; font-weight:700;
+            background:linear-gradient(135deg,#ff6b35,#ff3d7f);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">AICS</span>
+          <span style="font-size:0.6rem; color:var(--text2); line-height:1.4; text-align:center;">Assoc. Italiana<br>Cultura e Sport</span>
+        </button>
+        <button id="btn-uisp" onclick="selectEnte('uisp')"
+          style="padding:1.1rem 0.75rem; border-radius:14px; border:2px solid rgba(0,194,255,0.3);
+          background:rgba(0,194,255,0.05); cursor:pointer; transition:all 0.2s;
+          display:flex; flex-direction:column; align-items:center; gap:0.4rem;">
+          <span style="font-size:2rem;">🔵</span>
+          <span style="font-family:Georgia,serif; font-size:1.4rem; font-weight:700;
+            background:linear-gradient(135deg,#00c2ff,#7b61ff);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">UISP</span>
+          <span style="font-size:0.6rem; color:var(--text2); line-height:1.4; text-align:center;">Unione Italiana<br>Sport Per tutti</span>
+        </button>
       </div>
     </div>
 
-    <div class="setup-form" id="setup-form">
-      <div class="setup-form-title">Dati della gara</div>
-      <div id="selected-ente-badge" style="display:none; font-size:0.68rem; font-weight:700;
-        padding:0.3rem 0.8rem; border-radius:20px; margin-bottom:1rem;
-        letter-spacing:0.08em;"></div>
-      <div class="form-row">
-        <div class="form-group" style="flex:2">
-          <label>Nome della gara</label>
-          <input type="text" id="inp-race-name" placeholder="es. Campionato Regionale 2026">
-        </div>
+    <!-- STEP 2: DATI GARA -->
+    <div style="width:100%; background:var(--surface2); border-radius:14px; padding:1.25rem; border:1px solid var(--border2); margin-bottom:1rem;">
+      <div style="font-size:0.65rem; font-weight:700; letter-spacing:0.15em; text-transform:uppercase;
+        color:var(--text3); margin-bottom:1rem;">② Dati della gara</div>
+
+      <div class="form-group" style="margin-bottom:0.85rem;">
+        <label>Nome della gara</label>
+        <input type="text" id="inp-race-name" placeholder="es. Campionato Regionale 2026">
       </div>
-      <div class="form-row">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin-bottom:0.85rem;">
         <div class="form-group">
           <label>Data</label>
           <input type="date" id="inp-race-date">
@@ -834,30 +848,40 @@ td.col-name { text-align: left; padding-left: 0.9rem; }
           <input type="text" id="inp-race-place" placeholder="Città, Impianto">
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Tipo di gara</label>
-          <select id="inp-race-type" onchange="updateCategoryOptions()">
-            <option value="">-- Seleziona tipo --</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Categoria</label>
-          <select id="inp-race-cat">
-            <option value="">-- Prima seleziona il tipo --</option>
-          </select>
-        </div>
+
+      <div style="font-size:0.65rem; font-weight:700; letter-spacing:0.15em; text-transform:uppercase;
+        color:var(--text3); margin-bottom:0.6rem; margin-top:0.5rem;">③ Tipo gara e categoria</div>
+
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Tipo di gara</label>
+        <select id="inp-race-type" onchange="updateCategoryOptions()">
+          <option value="">-- Prima seleziona l'ente ①  --</option>
+        </select>
       </div>
-      <button class="btn btn-primary btn-lg btn-block" onclick="startRace()" style="margin-top:0.5rem;">
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Categoria</label>
+        <select id="inp-race-cat">
+          <option value="">-- Prima seleziona il tipo --</option>
+        </select>
+      </div>
+
+      <div id="score-range-note" style="font-size:0.68rem; color:var(--tech);
+        background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2);
+        border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:0.85rem; display:none;"></div>
+
+      <button class="btn btn-primary btn-lg btn-block" onclick="startRace()">
         🏁 Inizia la gara
       </button>
     </div>
 
-    <div style="margin-top:1.5rem; display:flex; flex-direction:column; align-items:center; gap:0.75rem;">
+    <!-- BOTTOM -->
+    <div style="display:flex; flex-direction:column; align-items:center; gap:0.6rem; margin-top:0.5rem;">
       <button class="btn btn-ghost" onclick="showScreen('archive')">📁 Archivio gare precedenti</button>
-      <button class="btn btn-ghost" style="border-color:rgba(239,68,68,0.3);color:#f87171;font-size:0.7rem;" onclick="resetAllData()">🗑 Cancella tutti i dati</button>
-      <div style="font-size:0.6rem;color:var(--text3);margin-top:0.5rem;">versione 4.1</div>
+      <button class="btn btn-ghost" style="border-color:rgba(239,68,68,0.3);color:#f87171;font-size:0.7rem;"
+        onclick="resetAllData()">🗑 Cancella tutti i dati</button>
+      <div style="font-size:0.6rem;color:var(--text3);">versione 4.2</div>
     </div>
+
   </div>
 </div>
 
@@ -1102,19 +1126,34 @@ function showScreen(name) {
 function selectEnte(e) {
   ente = e;
   localStorage.setItem('ss_ente_selection', e);
-  document.querySelectorAll('.ente-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById('card-' + e).classList.add('selected');
   applyEnteTheme(e);
-  // Update type/category dropdowns for selected ente
   updateTypeOptions();
-  // Update setup form title to show selected ente
-  const badge = document.getElementById('selected-ente-badge');
-  if (badge) {
-    badge.textContent = e.toUpperCase() + ' selezionato ✓';
-    badge.style.display = 'inline-block';
-    badge.style.background = e === 'aics' ? 'rgba(255,107,53,0.15)' : 'rgba(0,194,255,0.15)';
-    badge.style.color = e === 'aics' ? '#ff6b35' : '#00c2ff';
+
+  // Style the two toggle buttons
+  const btnAics = document.getElementById('btn-aics');
+  const btnUisp = document.getElementById('btn-uisp');
+  if (btnAics && btnUisp) {
+    if (e === 'aics') {
+      btnAics.style.border = '2px solid #ff6b35';
+      btnAics.style.background = 'rgba(255,107,53,0.15)';
+      btnAics.style.boxShadow = '0 0 0 3px rgba(255,107,53,0.2)';
+      btnUisp.style.border = '2px solid rgba(0,194,255,0.3)';
+      btnUisp.style.background = 'rgba(0,194,255,0.05)';
+      btnUisp.style.boxShadow = 'none';
+    } else {
+      btnUisp.style.border = '2px solid #00c2ff';
+      btnUisp.style.background = 'rgba(0,194,255,0.15)';
+      btnUisp.style.boxShadow = '0 0 0 3px rgba(0,194,255,0.2)';
+      btnAics.style.border = '2px solid rgba(255,107,53,0.3)';
+      btnAics.style.background = 'rgba(255,107,53,0.05)';
+      btnAics.style.boxShadow = 'none';
+    }
   }
+
+  // Also handle old card-based selection if present
+  document.querySelectorAll('.ente-card').forEach(c => c.classList.remove('selected'));
+  const oldCard = document.getElementById('card-' + e);
+  if (oldCard) oldCard.classList.add('selected');
 }
 
 function applyEnteTheme(e) {
@@ -2094,7 +2133,7 @@ function updateCategoryOptions() {
   });
 
   // Update score note
-  if (noteEl) noteEl.textContent = found.note;
+  if (noteEl) { noteEl.textContent = found.note; noteEl.style.display = found.note ? 'block' : 'none'; }
 
   // Store score limits for use in vote validation
   window._scoreMin = found.scoreMin;
