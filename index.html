@@ -2162,50 +2162,47 @@ function updateTypeOptions() {
 // ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
-selectEnte('aics');
-// Restore gara in corso da localStorage
-(function restoreCurrentRace() {
+// Init — aspetta che il DOM sia completamente caricato
+document.addEventListener('DOMContentLoaded', function() {
+  // Imposta la data di oggi
+  const d = new Date(), pad = n => String(n).padStart(2,'0');
+  const dateEl = document.getElementById('inp-race-date');
+  if (dateEl) dateEl.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  // Ripristina selezione ente o imposta AICS come default
+  const savedEnte = localStorage.getItem('ss_ente_selection') || 'aics';
+  selectEnte(savedEnte);
+
+  // Ripristina gara in corso se presente
   try {
     const saved = localStorage.getItem('ss_current');
     if (!saved) return;
     const r = JSON.parse(saved);
-    if (!r || !r.id || r.archived) {
-      localStorage.removeItem('ss_current');
-      return;
-    }
-    // Assicura che athletes e votes esistano
+    if (!r || !r.id || r.archived) { localStorage.removeItem('ss_current'); return; }
     r.athletes = r.athletes || [];
     r.votes = r.votes || {};
     currentRace = r;
     window._scoreMin = r.scoreMin || 0;
     window._techMax = r.techMax || 10;
     window._artMax = r.artMax || 10;
-    applyEnteTheme(r.ente||'aics');
-    ente = r.ente||'aics';
-    document.getElementById('topbar-ente-badge').textContent=(r.ente||'aics').toUpperCase();
-    document.getElementById('topbar-race-title').textContent=r.name;
-    document.getElementById('ri-name').textContent=r.name;
-    document.getElementById('ri-date').textContent=formatDate(r.date);
-    document.getElementById('ri-place').textContent=r.place||'—';
-    document.getElementById('ri-cat').textContent=r.category||'—';
-    document.getElementById('ri-count').textContent=r.athletes.length;
+    applyEnteTheme(r.ente || 'aics');
+    ente = r.ente || 'aics';
+    document.getElementById('topbar-ente-badge').textContent = (r.ente || 'aics').toUpperCase();
+    document.getElementById('topbar-race-title').textContent = r.name;
+    document.getElementById('ri-name').textContent = r.name;
+    document.getElementById('ri-date').textContent = formatDate(r.date);
+    document.getElementById('ri-place').textContent = r.place || '—';
+    document.getElementById('ri-cat').textContent = r.category || '—';
+    document.getElementById('ri-count').textContent = r.athletes.length;
     showScreen('main');
     showTab('athletes');
     renderAthletes();
     toast('Gara "' + r.name + '" ripristinata 🛼');
   } catch(e) {
-    console.error('[SS] Errore ripristino gara:', e);
+    console.error('[SS] Errore ripristino:', e);
     localStorage.removeItem('ss_current');
   }
-})();
-// Set today's date in welcome form
-const d=new Date(), pad=n=>String(n).padStart(2,'0');
-const dateEl=document.getElementById('inp-race-date');
-if(dateEl) dateEl.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-// Restore ente selection if previously saved
-const savedEnteInit = localStorage.getItem('ss_ente_selection');
-if (savedEnteInit) selectEnte(savedEnteInit);
-else selectEnte('aics');;
+});
 </script>
 </body>
 </html>
