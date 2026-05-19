@@ -333,7 +333,18 @@ td.tl{text-align:left;padding-left:0.8rem;}
   </div>
   <div style="padding:1.5rem 1.25rem 1rem;">
     <h2 style="font-family:Georgia,serif;font-size:1.5rem;font-weight:700;margin-bottom:0.3rem;">📁 Archivio Gare</h2>
-    <p style="font-size:0.82rem;color:var(--text2);">Tutte le gare archiviate</p>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:1rem;">Tutte le gare archiviate</p>
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:1rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;">
+      <div style="flex:1;min-width:180px;">
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:0.2rem;">💾 Backup dati</div>
+        <div style="font-size:0.7rem;color:var(--text2);">Esporta o importa tutto l'archivio — utile se cambi telefono</div>
+      </div>
+      <button class="btn btn-s btn-sm" onclick="exportBackup()">📤 Esporta backup</button>
+      <label class="btn btn-s btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.35rem;">
+        📥 Importa backup
+        <input type="file" id="backup-input" accept=".json" style="display:none;" onchange="importBackup(this)">
+      </label>
+    </div>
   </div>
   <div id="arc-grid" class="archive-grid"></div>
 </div>
@@ -1069,6 +1080,73 @@ window.addEventListener('beforeinstallprompt', function(e) {
     if (r.outcome === 'accepted') toast('Skate Score installata! 🛼');
   });
 });
+
+
+// ═══ BACKUP EXPORT / IMPORT ═══
+function exportBackup() {
+  loadArchive();
+  var backup = {
+    version: '5.0',
+    exportedAt: new Date().toISOString(),
+    archive: archive,
+    current: null
+  };
+  try {
+    var cur = localStorage.getItem('ss_current');
+    if (cur) backup.current = JSON.parse(cur);
+  } catch(e) {}
+  var json = JSON.stringify(backup, null, 2);
+  var blob = new Blob([json], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  var d = new Date();
+  var pad = function(n){return String(n).padStart(2,'0');};
+  a.download = 'skatescore_backup_' + d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Backup esportato ✓ — ' + archive.length + ' gare salvate');
+}
+
+function importBackup(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      if (!data.archive || !Array.isArray(data.archive)) {
+        toast('⚠️ File non valido'); return;
+      }
+      showModal(
+        '📥 Importa backup',
+        'Trovate ' + data.archive.length + ' gare nel backup. Vuoi importarle? Le gare già presenti verranno mantenute.',
+        function() {
+          loadArchive();
+          // Merge: add races not already present
+          var imported = 0;
+          data.archive.forEach(function(r) {
+            var exists = archive.some(function(x) { return x.id === r.id; });
+            if (!exists) { archive.push(r); imported++; }
+          });
+          localStorage.setItem('ss_archive', JSON.stringify(archive));
+          // Restore current race if present and no active race
+          if (data.current && data.current.id && !data.current.archived && !currentRace) {
+            localStorage.setItem('ss_current', JSON.stringify(data.current));
+          }
+          renderArchive();
+          toast('Importate ' + imported + ' gare ✓');
+        },
+        'Importa',
+        false
+      );
+    } catch(err) {
+      toast('⚠️ Errore lettura file: ' + err.message);
+    }
+    // Reset input so same file can be selected again
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
 
 // ═══ INIT ═══
 document.addEventListener('DOMContentLoaded', function() {
